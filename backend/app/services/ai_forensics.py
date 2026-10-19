@@ -123,7 +123,7 @@ class AIForensicsService:
         rgb_image = image.convert("RGB")
 
         # Resize to standard model input dimensions
-        resized = rgb_image.resize((224, 224), resample=Image.Resampling.BICUBIC)
+        resized = rgb_image.resize((224, 224), resample=Image.Resampling.BILINEAR)
 
         # Convert to numpy array float32 [224, 224, 3]
         arr = np.asarray(resized, dtype=np.float32)
@@ -143,21 +143,28 @@ class AIForensicsService:
         if not self.is_available():
             # Attempt lazy initialization in case weights were placed after boot
             if not self.initialize():
+                err_msg = self._init_error or "Weights missing"
                 return AIForensicsResult(
                     task=self.task,
                     model_name=self.model_name,
                     model_version=self.model_version,
+                    model_available=False,
+                    inference_status="unavailable",
                     status="unavailable",
                     raw_score=None,
                     synthetic_likelihood=None,
+                    score_semantics="Softmax output probability over [fake, real] classes; index 0 represents synthetic probability on [0.0, 1.0] scale.",
                     label="model_unavailable",
+                    indicator="model_unavailable",
                     evaluation_status="uncalibrated_raw_model_estimate",
                     inference_latency_ms=None,
+                    latency_ms=None,
                     explanation=(
-                        f"AI model inference is currently unavailable ({self._init_error or 'Weights missing'}). "
+                        f"AI model inference is currently unavailable ({err_msg}). "
                         "Technical image inspection and byte hashing remain active and verified."
                     ),
                     limitations=STANDARD_AI_LIMITATIONS,
+                    error_message=err_msg,
                 )
 
         try:
@@ -207,14 +214,20 @@ class AIForensicsService:
                 task=self.task,
                 model_name=self.model_name,
                 model_version=self.model_version,
+                model_available=True,
+                inference_status="success",
                 status="success",
                 raw_score=synthetic_score,
                 synthetic_likelihood=synthetic_score,
+                score_semantics="Softmax output probability over [fake, real] classes; index 0 represents synthetic probability on [0.0, 1.0] scale.",
                 label=label,
+                indicator=label,
                 evaluation_status="uncalibrated_raw_model_estimate",
                 inference_latency_ms=elapsed_ms,
+                latency_ms=elapsed_ms,
                 explanation=explanation,
                 limitations=STANDARD_AI_LIMITATIONS,
+                error_message=None,
             )
 
         except ValueError as val_err:
@@ -223,14 +236,20 @@ class AIForensicsService:
                 task=self.task,
                 model_name=self.model_name,
                 model_version=self.model_version,
+                model_available=self.is_available(),
+                inference_status="unsupported_input",
                 status="unsupported_input",
                 raw_score=None,
                 synthetic_likelihood=None,
+                score_semantics="Softmax output probability over [fake, real] classes; index 0 represents synthetic probability on [0.0, 1.0] scale.",
                 label="unsupported_input",
+                indicator="unsupported_input",
                 evaluation_status="uncalibrated_raw_model_estimate",
                 inference_latency_ms=None,
+                latency_ms=None,
                 explanation=f"AI forensics input rejected: {str(val_err)}",
                 limitations=STANDARD_AI_LIMITATIONS,
+                error_message=str(val_err),
             )
         except Exception as exc:
             logger.error("Inference execution failed: %s", str(exc), exc_info=True)
@@ -238,12 +257,18 @@ class AIForensicsService:
                 task=self.task,
                 model_name=self.model_name,
                 model_version=self.model_version,
+                model_available=self.is_available(),
+                inference_status="failed",
                 status="failed",
                 raw_score=None,
                 synthetic_likelihood=None,
+                score_semantics="Softmax output probability over [fake, real] classes; index 0 represents synthetic probability on [0.0, 1.0] scale.",
                 label="inference_failed",
+                indicator="inference_failed",
                 evaluation_status="uncalibrated_raw_model_estimate",
                 inference_latency_ms=None,
+                latency_ms=None,
                 explanation=f"AI model inference encountered a processing error: {str(exc)}",
                 limitations=STANDARD_AI_LIMITATIONS,
+                error_message=str(exc),
             )

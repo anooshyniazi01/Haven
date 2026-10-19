@@ -4,7 +4,7 @@ Conforms to docs/API_SPEC.md Section 5, 6, 7, docs/AI_SPEC.md, and docs/DATABASE
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DimensionsInfo(BaseModel):
@@ -69,19 +69,53 @@ class TechnicalInspectionResult(BaseModel):
 
 
 class AIForensicsResult(BaseModel):
-    """Detailed forensic results from AI-generated media detection model."""
+    """Detailed forensic results from AI-generated media detection model.
+    Conforms to canonical schema shared across backend, frontend, database, and PDF export.
+    """
 
     task: str = Field("ai_generated_image_detection", description="Specific forensic detection task")
     model_name: str = Field(..., description="Identity and architecture of model used")
     model_version: str = Field(..., description="Version of model or weights checkpoint")
-    status: str = Field(..., description="Execution status: 'success', 'unavailable', 'failed', or 'unsupported_input'")
+    model_available: bool = Field(True, description="Whether the local AI model is loaded and available")
+    inference_status: str = Field("success", description="Execution status: 'success', 'unavailable', 'failed', or 'unsupported_input'")
+    status: str = Field("success", description="Lifecycle status identical to inference_status for backwards compatibility")
     raw_score: Optional[float] = Field(None, description="Direct model output probability (0.0 to 1.0) before any thresholding")
     synthetic_likelihood: Optional[float] = Field(None, description="Reported synthetic probability score")
-    label: Optional[str] = Field(None, description="Indicator tier: 'elevated_synthetic_indicators', 'inconclusive_synthetic_signals', 'low_synthetic_indicators', etc.")
-    evaluation_status: str = Field(..., description="Honest calibration and validation status disclosure")
+    score_semantics: str = Field(
+        "Softmax output probability over [fake, real] classes; index 0 represents synthetic probability on [0.0, 1.0] scale.",
+        description="Clear explanation of what the score represents numerically",
+    )
+    label: Optional[str] = Field(
+        None,
+        description="Indicator tier: 'elevated_synthetic_indicators', 'inconclusive_synthetic_signals', 'low_synthetic_indicators', 'unsupported_input', 'model_unavailable', 'inference_failed'",
+    )
+    indicator: Optional[str] = Field(None, description="Compatibility alias for label")
+    evaluation_status: str = Field("uncalibrated_raw_model_estimate", description="Honest calibration and validation status disclosure")
     inference_latency_ms: Optional[float] = Field(None, description="Local CPU inference latency in milliseconds")
+    latency_ms: Optional[float] = Field(None, description="Compatibility alias for inference_latency_ms")
     explanation: Optional[str] = Field(None, description="Forensic explanation of AI model findings")
     limitations: List[str] = Field(default_factory=list, description="Specific limitations regarding generator coverage, recompression, etc.")
+    error_message: Optional[str] = Field(None, description="Safe error description when inference fails or is rejected")
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_compatible_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            status_val = data.get("inference_status") or data.get("status") or "success"
+            data["status"] = status_val
+            data["inference_status"] = status_val
+
+            lbl = data.get("label") or data.get("indicator")
+            data["label"] = lbl
+            data["indicator"] = lbl
+
+            lat = data.get("inference_latency_ms") if data.get("inference_latency_ms") is not None else data.get("latency_ms")
+            data["inference_latency_ms"] = lat
+            data["latency_ms"] = lat
+
+            if "model_available" not in data:
+                data["model_available"] = status_val != "unavailable"
+        return data
 
 
 class AnalysisResult(BaseModel):

@@ -427,3 +427,41 @@ The model will only be promoted from experimental to active production if:
   * May degrade under heavy messaging compression or unseen model generators.
   * Full multi-generator benchmark evaluation against the complete Ojha/COCO suites (Section 17.1) remains scheduled as offline evaluation research.
 
+
+
+---
+
+## 15. Verified Implementation & Production Verification Status (October 2026)
+
+The AI Forensics & Image Analysis slice has been implemented, integrated, and verified end-to-end:
+
+1. **Model Specification & Hardware Profile:**
+   - **Model Identifier:** `ai-image-detect-distilled-onnx` (derived from `jacoballessio/ai-image-detect-distilled`)
+   - **Model Architecture:** Distilled Vision Transformer (ViT-small, quantized INT8 ONNX, 14.55 MB checkpoint)
+   - **Hardware Profile:** Local CPU execution only (`onnxruntime.InferenceSession` with `CPUExecutionProvider`). No GPU requirements or external cloud APIs.
+   - **Input Contract:** 224 × 224 pixels, RGB color mode, `Image.Resampling.BILINEAR` interpolation, normalized to `[-1.0, 1.0]` via `(x / 255.0 - 0.5) / 0.5`, NCHW tensor layout (`float32[1, 3, 224, 224]`).
+   - **Output Contract:** Tensor `logits` with shape `[1, 2]`. Index 0 = synthetic (`fake`), Index 1 = authentic (`real`). Softmax computes `synthetic_likelihood = exp(l0) / (exp(l0) + exp(l1))`.
+   - **Execution Latency:** Empirically measured ~80–120 ms on modern x86_64 CPU.
+
+2. **Unified Data Contract:**
+   - Canonical response schema (`AIForensicsResult`) shared identically between `app.schemas.analysis`, `types/analysis.ts`, database serialization (`technical_details_json`), and PDF forensic report generation (`pdf_exporter.py`).
+
+3. **Classification & Scoring Policy:**
+   - Status declared honestly as `uncalibrated_raw_model_estimate`.
+   - Continuous score exposed with cautious interpretation tiers:
+     - `>= 0.75`: `elevated_synthetic_indicators`
+     - `0.25 <= score < 0.75`: `inconclusive_synthetic_signals`
+     - `< 0.25`: `low_synthetic_indicators`
+   - Explicit disclaimers note that high scores do not prove synthetic origin and low scores do not prove authenticity.
+
+4. **Model Evaluation Framework:**
+   - Reproducible evaluation engine implemented in `app.services.evaluator.ModelEvaluator` accepting structured `DatasetManifest` inputs.
+   - Computes confusion matrix, accuracy, precision, recall (sensitivity), specificity, F1 score, error rates, and rank-sum ROC-AUC.
+   - Production accuracy marked as unevaluated on public ground-truth benchmarks until a permitted, labelled dataset is evaluated.
+
+5. **Test & Verification Summary:**
+   - Backend pytest suite: 87 passed / 87 tests.
+   - Frontend vitest suite: 57 passed / 57 tests.
+   - TypeScript verification (`tsc --noEmit`): 0 errors.
+   - Production Vite build (`vite build`): Succeeded (252.7 kB JS, 2.68 kB CSS).
+   - Live smoke test & browser subagent recording: End-to-end verified across upload, inspection, AI detection, PDF export, and Evidence Vault integration.

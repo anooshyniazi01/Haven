@@ -42,15 +42,40 @@ export interface TechnicalInspectionResult {
 }
 
 export interface AIForensicsResult {
-  task: string;
+  task?: string;
   model_name: string;
   model_version: string;
-  status: "success" | "failed" | "unavailable";
+  model_available?: boolean;
+  inference_status?: "success" | "unavailable" | "failed" | "unsupported_input";
+  status: "success" | "unavailable" | "failed" | "unsupported_input";
+  raw_score?: number | null;
   synthetic_likelihood: number | null;
-  indicator: "low_synthetic_signal" | "inconclusive" | "elevated_synthetic_signal" | "evaluation_pending" | null;
-  latency_ms: number | null;
   score_semantics: string;
+  label?:
+    | "elevated_synthetic_indicators"
+    | "inconclusive_synthetic_signals"
+    | "low_synthetic_indicators"
+    | "unsupported_input"
+    | "model_unavailable"
+    | "inference_failed"
+    | null;
+  indicator?:
+    | "elevated_synthetic_indicators"
+    | "inconclusive_synthetic_signals"
+    | "low_synthetic_indicators"
+    | "elevated_synthetic_signal"
+    | "low_synthetic_signal"
+    | "inconclusive"
+    | "evaluation_pending"
+    | "unsupported_input"
+    | "model_unavailable"
+    | "inference_failed"
+    | null;
+  inference_latency_ms?: number | null;
+  latency_ms?: number | null;
+  explanation?: string | null;
   limitations: string[];
+  evaluation_status?: string;
   error_message?: string | null;
 }
 

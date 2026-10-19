@@ -66,6 +66,7 @@ export const App: React.FC = () => {
         <ImageAnalyzer
           initialEvidenceId={targetEvidenceId}
           onNavigateToIntake={() => setActiveTab("intake")}
+          onNavigateToVault={() => setActiveTab("vault")}
         />
       )}
       {activeTab === "intake" && (

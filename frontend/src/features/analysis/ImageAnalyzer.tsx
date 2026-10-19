@@ -16,30 +16,44 @@ import { formatBytes, formatTimestamp } from "../../utils/formatters";
 export interface ImageAnalyzerProps {
   initialEvidenceId?: string | null;
   onNavigateToIntake?: () => void;
+  onNavigateToVault?: () => void;
 }
+
+type ProcessingStage =
+  | "idle"
+  | "validating"
+  | "uploading"
+  | "inspecting"
+  | "inferring"
+  | "saving";
 
 export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
   initialEvidenceId,
   onNavigateToIntake,
+  onNavigateToVault,
 }) => {
   const [mode, setMode] = useState<"evidence" | "upload">(
     initialEvidenceId ? "evidence" : "evidence"
   );
   const [evidenceId, setEvidenceId] = useState<string>(initialEvidenceId || "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileValidationError, setFileValidationError] = useState<string | null>(null);
   const [saveToVault, setSaveToVault] = useState<boolean>(true);
 
   const [loading, setLoading] = useState<boolean>(false);
+  const [processingStage, setProcessingStage] = useState<ProcessingStage>("idle");
   const [analysisReport, setAnalysisReport] = useState<AnalysisResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [copiedId, setCopiedId] = useState<boolean>(false);
+  const [copiedEvidenceId, setCopiedEvidenceId] = useState<boolean>(false);
   const [copiedHash, setCopiedHash] = useState<boolean>(false);
 
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  // Auto-run if initialEvidenceId is provided from Evidence Intake
+  // Auto-run if initialEvidenceId is provided from Evidence Intake or Vault
   useEffect(() => {
     if (initialEvidenceId) {
       setEvidenceId(initialEvidenceId);
@@ -48,6 +62,54 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
     }
   }, [initialEvidenceId]);
 
+  // Handle object URL lifecycle for uploaded file preview
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedFile);
+    setPreviewUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [selectedFile]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFileValidationError(null);
+    setErrorMessage(null);
+
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    // Size limit: 25 MB
+    const maxBytes = 25 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setFileValidationError(`File size (${formatBytes(file.size)}) exceeds the maximum allowed limit of 25 MB.`);
+      setSelectedFile(null);
+      return;
+    }
+
+    // Extension / MIME validation
+    const validExts = [".jpg", ".jpeg", ".png", ".webp"];
+    const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    const validMimes = ["image/jpeg", "image/png", "image/webp"];
+
+    if (!validExts.includes(ext) && (file.type && !validMimes.includes(file.type))) {
+      setFileValidationError(
+        `Unsupported format (${ext || file.type || "unknown"}). Only JPEG, PNG, and WEBP images are supported.`
+      );
+      setSelectedFile(null);
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
   const handleAnalyzeEvidence = async (targetId: string) => {
     if (!targetId.trim()) {
       setErrorMessage("Please enter an Evidence ID to analyze.");
@@ -55,6 +117,7 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
     }
 
     setLoading(true);
+    setProcessingStage("inspecting");
     setErrorMessage(null);
 
     try {
@@ -67,13 +130,14 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
       );
     } finally {
       setLoading(false);
+      setProcessingStage("idle");
     }
   };
 
   const handleAnalyzeUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
-      setErrorMessage("Please choose an image file to analyze.");
+      setErrorMessage("Please choose a valid image file to analyze.");
       return;
     }
 
@@ -81,10 +145,15 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
     setErrorMessage(null);
 
     try {
-      // Step 1: Register upload
+      // Step 1: Validate & Upload
+      setProcessingStage("uploading");
       const uploadRes = await createAnalysisFromUpload(selectedFile, saveToVault);
-      // Step 2: Run technical inspection
+
+      // Step 2: Technical Inspection & AI Inference
+      setProcessingStage("inspecting");
       const fullReport = await runAnalysis(uploadRes.id);
+
+      setProcessingStage("saving");
       setAnalysisReport(fullReport);
     } catch (err: unknown) {
       const errObj = err as { message?: string };
@@ -93,6 +162,7 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
       );
     } finally {
       setLoading(false);
+      setProcessingStage("idle");
     }
   };
 
@@ -117,11 +187,14 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
     }
   };
 
-  const handleCopy = (text: string, type: "id" | "hash") => {
+  const handleCopy = (text: string, type: "id" | "evidence" | "hash") => {
     navigator.clipboard.writeText(text).then(() => {
       if (type === "id") {
         setCopiedId(true);
         setTimeout(() => setCopiedId(false), 2500);
+      } else if (type === "evidence") {
+        setCopiedEvidenceId(true);
+        setTimeout(() => setCopiedEvidenceId(false), 2500);
       } else {
         setCopiedHash(true);
         setTimeout(() => setCopiedHash(false), 2500);
@@ -134,9 +207,28 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
     setErrorMessage(null);
     setExportError(null);
     setSelectedFile(null);
+    setFileValidationError(null);
   };
 
   const ti = analysisReport?.result?.technical_inspection;
+  const ai = analysisReport?.result?.ai_forensics;
+
+  const getProcessingMessage = (stage: ProcessingStage): string => {
+    switch (stage) {
+      case "validating":
+        return "Validating file format and size limits...";
+      case "uploading":
+        return "Uploading and registering image in storage...";
+      case "inspecting":
+        return "Executing technical inspection and local CPU AI detection...";
+      case "inferring":
+        return "Running local distilled ViT model on CPU...";
+      case "saving":
+        return "Persisting structured analysis findings to database...";
+      default:
+        return "Processing analysis request...";
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
@@ -146,7 +238,7 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
           Technical Image Inspection
         </h1>
         <p style={{ margin: 0, color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>
-          Perform verifiable technical inspection of image geometry, encoding, compression, and EXIF metadata without fabricating synthetic scores.
+          Perform verifiable technical inspection of image geometry, metadata, and local ONNX AI synthetic-image detection without fabricated scores.
         </p>
       </div>
 
@@ -169,6 +261,11 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                     {exportingPdf ? "Exporting PDF..." : "Export PDF Report"}
                   </Button>
                 )}
+                {analysisReport.evidence_id && onNavigateToVault && (
+                  <Button variant="secondary" onClick={onNavigateToVault} aria-label="View in Evidence Vault">
+                    View in Evidence Vault
+                  </Button>
+                )}
                 <Button variant="secondary" onClick={handleReset} disabled={exportingPdf}>
                   Inspect Another Image
                 </Button>
@@ -181,6 +278,42 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                   {exportError}
                 </Alert>
               )}
+
+              {/* Optional Client-Side Image Preview Thumbnail */}
+              {previewUrl && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-4)",
+                    padding: "var(--space-3)",
+                    backgroundColor: "var(--color-surface-muted)",
+                    borderRadius: "var(--radius-md)",
+                  }}
+                >
+                  <img
+                    src={previewUrl}
+                    alt={analysisReport.original_filename}
+                    style={{
+                      maxHeight: "140px",
+                      maxWidth: "200px",
+                      borderRadius: "var(--radius-sm)",
+                      objectFit: "contain",
+                      border: "1px solid var(--color-border)",
+                      backgroundColor: "var(--color-surface)",
+                    }}
+                  />
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: "1.6" }}>
+                    <div style={{ fontWeight: 600, color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>
+                      Analyzed Image Preview
+                    </div>
+                    <div>File: {analysisReport.original_filename}</div>
+                    <div>Size: {formatBytes(analysisReport.file_size_bytes)}</div>
+                    <div>MIME: {analysisReport.mime_type_detected}</div>
+                  </div>
+                </div>
+              )}
+
               {/* Badges and Findings */}
               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
                 <StatusBadge
@@ -197,22 +330,22 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                       : (analysisReport.analysis_method || "Technical Inspection")
                   }
                 />
-                {analysisReport.result?.ai_forensics && analysisReport.result.ai_forensics.status === "success" ? (
+                {ai && (ai.status === "success" || ai.inference_status === "success") ? (
                   <StatusBadge
                     status={
-                      analysisReport.result.ai_forensics.indicator === "elevated_synthetic_signal"
+                      ai.indicator === "elevated_synthetic_signal" || ai.indicator === "elevated_synthetic_indicators" || ai.label === "elevated_synthetic_indicators"
                         ? "warning"
-                        : analysisReport.result.ai_forensics.indicator === "low_synthetic_signal"
+                        : ai.indicator === "low_synthetic_signal" || ai.indicator === "low_synthetic_indicators" || ai.label === "low_synthetic_indicators"
                         ? "success"
                         : "neutral"
                     }
                     label={`AI Detection: ${
-                      analysisReport.result.ai_forensics.synthetic_likelihood !== null
-                        ? `${(analysisReport.result.ai_forensics.synthetic_likelihood * 100).toFixed(1)}% Synthetic Likelihood`
+                      ai.synthetic_likelihood !== null
+                        ? `${(ai.synthetic_likelihood * 100).toFixed(1)}% Synthetic Likelihood`
                         : "Completed"
                     }`}
                   />
-                ) : analysisReport.result?.ai_forensics && analysisReport.result.ai_forensics.status === "failed" ? (
+                ) : ai && (ai.status === "failed" || ai.inference_status === "failed") ? (
                   <StatusBadge status="error" label="AI Detection: Failed" />
                 ) : (
                   <StatusBadge
@@ -272,6 +405,27 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                   </div>
                 </div>
 
+                {analysisReport.evidence_id && (
+                  <div>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
+                      Evidence Vault UUID
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: "var(--space-1)" }}>
+                      <code style={{ fontSize: "var(--font-size-xs)", wordBreak: "break-all" }}>
+                        {analysisReport.evidence_id}
+                      </code>
+                      <Button
+                        variant="secondary"
+                        style={{ padding: "var(--space-1) var(--space-3)", fontSize: "var(--font-size-xs)" }}
+                        onClick={() => handleCopy(analysisReport.evidence_id!, "evidence")}
+                        aria-label="Copy Evidence ID"
+                      >
+                        {copiedEvidenceId ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
                     SHA-256 Digest of Stored Bytes
@@ -295,34 +449,38 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
           </Card>
 
           {/* AI-Generated Image Detection Card */}
-          {analysisReport.result?.ai_forensics && (
+          {ai && (
             <Card
               title="AI-Generated Image Detection"
-              subtitle={`Model: ${analysisReport.result.ai_forensics.model_name} (${analysisReport.result.ai_forensics.model_version}) — Local CPU Inference`}
+              subtitle={`Model: ${ai.model_name || "ai-image-detect-distilled-onnx"} (${ai.model_version || "1.0.0"}) • Local CPU Inference`}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                {analysisReport.result.ai_forensics.status === "success" ? (
+                {ai.status === "success" || ai.inference_status === "success" ? (
                   <>
                     <div style={{ display: "flex", gap: "var(--space-3)", alignItems: "center", flexWrap: "wrap" }}>
                       <StatusBadge
                         status={
-                          analysisReport.result.ai_forensics.indicator === "elevated_synthetic_signal"
+                          ai.indicator === "elevated_synthetic_signal" || ai.indicator === "elevated_synthetic_indicators" || ai.label === "elevated_synthetic_indicators"
                             ? "warning"
-                            : analysisReport.result.ai_forensics.indicator === "low_synthetic_signal"
+                            : ai.indicator === "low_synthetic_signal" || ai.indicator === "low_synthetic_indicators" || ai.label === "low_synthetic_indicators"
                             ? "success"
                             : "neutral"
                         }
                         label={
-                          analysisReport.result.ai_forensics.indicator === "elevated_synthetic_signal"
+                          ai.indicator === "elevated_synthetic_signal" || ai.indicator === "elevated_synthetic_indicators" || ai.label === "elevated_synthetic_indicators"
                             ? "Elevated Synthetic Signal (>=75%)"
-                            : analysisReport.result.ai_forensics.indicator === "low_synthetic_signal"
+                            : ai.indicator === "low_synthetic_signal" || ai.indicator === "low_synthetic_indicators" || ai.label === "low_synthetic_indicators"
                             ? "Low Synthetic Signal (<25%)"
                             : "Inconclusive Signal (25% - 75%)"
                         }
                       />
-                      {analysisReport.result.ai_forensics.latency_ms !== null && (
+                      <StatusBadge
+                        status="neutral"
+                        label={`Evaluation: ${ai.evaluation_status || "Uncalibrated Raw Estimate"}`}
+                      />
+                      {(ai.latency_ms !== null || ai.inference_latency_ms !== null) && (
                         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-                          CPU Latency: {analysisReport.result.ai_forensics.latency_ms.toFixed(1)} ms
+                          CPU Latency: {(ai.inference_latency_ms ?? ai.latency_ms)?.toFixed(1)} ms
                         </span>
                       )}
                     </div>
@@ -337,30 +495,53 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                       <div style={{ padding: "var(--space-3)", backgroundColor: "var(--color-surface-muted)", borderRadius: "var(--radius-sm)" }}>
                         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Synthetic Likelihood Estimate</span>
                         <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginTop: "var(--space-1)" }}>
-                          {analysisReport.result.ai_forensics.synthetic_likelihood !== null
-                            ? `${(analysisReport.result.ai_forensics.synthetic_likelihood * 100).toFixed(1)}%`
+                          {ai.synthetic_likelihood !== null
+                            ? `${(ai.synthetic_likelihood * 100).toFixed(1)}%`
                             : "N/A"}
                         </div>
                         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-                          Raw output score: {analysisReport.result.ai_forensics.synthetic_likelihood?.toFixed(4) ?? "N/A"}
+                          Raw output score: {(ai.raw_score ?? ai.synthetic_likelihood)?.toFixed(4) ?? "N/A"}
                         </span>
                       </div>
 
                       <div style={{ padding: "var(--space-3)", backgroundColor: "var(--color-surface-muted)", borderRadius: "var(--radius-sm)" }}>
                         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Score Semantics</span>
                         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text)", marginTop: "var(--space-1)", lineHeight: "1.4" }}>
-                          {analysisReport.result.ai_forensics.score_semantics}
+                          {ai.score_semantics || "Softmax probability of synthetic class from binary ViT classifier."}
+                        </div>
+                      </div>
+
+                      <div style={{ padding: "var(--space-3)", backgroundColor: "var(--color-surface-muted)", borderRadius: "var(--radius-sm)" }}>
+                        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Model Architecture</span>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text)", marginTop: "var(--space-1)", lineHeight: "1.4" }}>
+                          Distilled Vision Transformer (ViT-small, 224x224 RGB, Bilinear interpolation, ONNX quantized)
                         </div>
                       </div>
                     </div>
 
-                    {analysisReport.result.ai_forensics.limitations.length > 0 && (
+                    {/* Explanation */}
+                    {ai.explanation && (
+                      <div
+                        style={{
+                          padding: "var(--space-3)",
+                          backgroundColor: "var(--color-surface-muted)",
+                          borderRadius: "var(--radius-sm)",
+                          fontSize: "var(--font-size-xs)",
+                          color: "var(--color-text)",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        <strong>Model Interpretation:</strong> {ai.explanation}
+                      </div>
+                    )}
+
+                    {ai.limitations && ai.limitations.length > 0 && (
                       <div>
                         <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--color-text-muted)", marginBottom: "var(--space-1)" }}>
                           Model Limitations & Evaluation Context
                         </div>
                         <ul style={{ margin: 0, paddingLeft: "var(--space-4)", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: "1.5" }}>
-                          {analysisReport.result.ai_forensics.limitations.map((lim, idx) => (
+                          {ai.limitations.map((lim, idx) => (
                             <li key={idx}>{lim}</li>
                           ))}
                         </ul>
@@ -369,10 +550,10 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                   </>
                 ) : (
                   <Alert
-                    type={analysisReport.result.ai_forensics.status === "failed" ? "error" : "info"}
-                    title={analysisReport.result.ai_forensics.status === "failed" ? "AI Detection Failed" : "AI Detection Unavailable"}
+                    type={ai.status === "failed" || ai.inference_status === "failed" ? "error" : "info"}
+                    title={ai.status === "failed" || ai.inference_status === "failed" ? "AI Detection Failed" : "AI Detection Unavailable"}
                   >
-                    {analysisReport.result.ai_forensics.error_message ||
+                    {ai.error_message ||
                       "Local AI model inference is unavailable or failed to execute."}
                   </Alert>
                 )}
@@ -575,7 +756,7 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                       gap: "var(--space-3)",
                       padding: "var(--space-3)",
                       borderRadius: "var(--radius-sm)",
-                      backgroundColor: a.severity === "warning" ? "var(--color-surface-muted)" : "var(--color-surface-muted)",
+                      backgroundColor: "var(--color-surface-muted)",
                       borderLeft: a.severity === "warning" ? "3px solid var(--color-warning)" : "3px solid var(--color-primary)",
                     }}
                   >
@@ -624,7 +805,7 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                   color: "var(--color-text-muted)",
                 }}
               >
-                <strong>AI Capability Disclosure:</strong> {ti?.ai_model_status}
+                <strong>AI Capability Disclosure:</strong> {ti?.ai_model_status || "AI synthetic detection evaluated using local quantized distilled ViT model on CPU."}
               </div>
             </div>
           </Card>
@@ -644,6 +825,7 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                 variant={mode === "evidence" ? "primary" : "secondary"}
                 onClick={() => setMode("evidence")}
                 type="button"
+                disabled={loading}
               >
                 Analyze Existing Evidence
               </Button>
@@ -651,16 +833,43 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                 variant={mode === "upload" ? "primary" : "secondary"}
                 onClick={() => setMode("upload")}
                 type="button"
+                disabled={loading}
               >
                 Upload New Image
               </Button>
             </div>
 
-            {/* Error banner */}
+            {/* Error banners */}
+            {fileValidationError && (
+              <Alert type="warning" title="Invalid Image File">
+                {fileValidationError}
+              </Alert>
+            )}
+
             {errorMessage && (
               <Alert type="error" title="Analysis Request Failed">
                 {errorMessage}
               </Alert>
+            )}
+
+            {/* Honest Processing Status Indicator */}
+            {loading && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--space-3)",
+                  padding: "var(--space-4)",
+                  backgroundColor: "var(--color-surface-muted)",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--color-border)",
+                }}
+              >
+                <StatusBadge status="info" label="In Progress" />
+                <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 500, color: "var(--color-text)" }}>
+                  {getProcessingMessage(processingStage)}
+                </span>
+              </div>
             )}
 
             {/* Mode A: Existing Evidence */}
@@ -726,7 +935,7 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                     id="direct-file-input"
                     type="file"
                     accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    onChange={handleFileChange}
                     disabled={loading}
                     style={{
                       display: "block",
@@ -736,16 +945,40 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                   />
                 </div>
 
-                {selectedFile && (
+                {/* File Preview and Information */}
+                {selectedFile && previewUrl && (
                   <div
                     style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--space-4)",
                       padding: "var(--space-3)",
                       backgroundColor: "var(--color-surface-muted)",
-                      borderRadius: "var(--radius-sm)",
-                      fontSize: "var(--font-size-xs)",
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid var(--color-border)",
                     }}
                   >
-                    Selected: <strong>{selectedFile.name}</strong> ({formatBytes(selectedFile.size)})
+                    <img
+                      src={previewUrl}
+                      alt="Selected image preview"
+                      style={{
+                        maxHeight: "120px",
+                        maxWidth: "160px",
+                        borderRadius: "var(--radius-sm)",
+                        objectFit: "contain",
+                        border: "1px solid var(--color-border)",
+                        backgroundColor: "var(--color-surface)",
+                      }}
+                    />
+                    <div style={{ fontSize: "var(--font-size-xs)", lineHeight: "1.6" }}>
+                      <div style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>{selectedFile.name}</div>
+                      <div style={{ color: "var(--color-text-muted)" }}>
+                        Size: {formatBytes(selectedFile.size)} ({selectedFile.size.toLocaleString()} bytes)
+                      </div>
+                      <div style={{ color: "var(--color-text-muted)" }}>
+                        MIME type: {selectedFile.type || "image/unknown"}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -763,7 +996,7 @@ export const ImageAnalyzer: React.FC<ImageAnalyzerProps> = ({
                 </div>
 
                 <div>
-                  <Button variant="primary" type="submit" disabled={loading || !selectedFile}>
+                  <Button variant="primary" type="submit" disabled={loading || !selectedFile || !!fileValidationError}>
                     {loading ? "Analyzing Image..." : "Upload & Run Technical Inspection"}
                   </Button>
                 </div>

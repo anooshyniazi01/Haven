@@ -338,19 +338,29 @@ def analyze_evidence_by_id(
     )
 
     analysis.status = "completed"
-    analysis.analysis_method = "technical_image_inspection"
-    analysis.model_name = None
-    analysis.model_version = None
+    if inspection_result.ai_forensics and inspection_result.ai_forensics.status == "success":
+        analysis.analysis_method = "technical_and_ai_synthetic_inspection"
+        analysis.model_name = inspection_result.ai_forensics.model_name
+        analysis.model_version = inspection_result.ai_forensics.model_version
+        analysis.result_score = inspection_result.score
+        analysis.score_type = inspection_result.score_type
+    else:
+        analysis.analysis_method = "technical_image_inspection"
+        analysis.model_name = None
+        analysis.model_version = None
+        analysis.result_score = None
+        analysis.score_type = None
+
     analysis.result_label = inspection_result.label
-    analysis.result_score = None
-    analysis.score_type = None
     analysis.explanation = inspection_result.explanation
     analysis.limitations_json = json.dumps(inspection_result.limitations)
-    analysis.technical_details_json = (
-        inspection_result.technical_inspection.model_dump_json()
-        if inspection_result.technical_inspection
-        else None
-    )
+
+    details_payload = {}
+    if inspection_result.technical_inspection:
+        details_payload["technical_inspection"] = inspection_result.technical_inspection.model_dump()
+    if inspection_result.ai_forensics:
+        details_payload["ai_forensics"] = inspection_result.ai_forensics.model_dump()
+    analysis.technical_details_json = json.dumps(details_payload)
     analysis.completed_at = now
     analysis.updated_at = now
 
@@ -358,11 +368,8 @@ def analyze_evidence_by_id(
     db.refresh(analysis)
 
     limitations = json.loads(analysis.limitations_json) if analysis.limitations_json else []
-    technical_inspection = None
-    if analysis.technical_details_json:
-        technical_inspection = TechnicalInspectionResult.model_validate_json(
-            analysis.technical_details_json
-        )
+    technical_inspection = inspection_result.technical_inspection
+    ai_forensics = inspection_result.ai_forensics
 
     result_payload = AnalysisResult(
         label=analysis.result_label,
@@ -371,6 +378,7 @@ def analyze_evidence_by_id(
         explanation=analysis.explanation or "Technical inspection completed.",
         limitations=limitations,
         technical_inspection=technical_inspection,
+        ai_forensics=ai_forensics,
     )
 
     return AnalysisResponse(
