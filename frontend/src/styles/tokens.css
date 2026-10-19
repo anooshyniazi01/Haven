@@ -1,0 +1,68 @@
+/* Haven Design Tokens conforming to docs/DESIGN_SYSTEM.md */
+
+:root {
+  /* Core Brand Colors */
+  --color-brand: #245b4f;
+  --color-brand-hover: #1b483f;
+  --color-brand-soft: #e7f1ed;
+  --color-background: #f7f8f6;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f0f2ef;
+  --color-text: #202923;
+  --color-text-secondary: #58635d;
+  --color-text-muted: #68736d;
+  --color-border: #dce2dc;
+  --color-border-strong: #b9c5bc;
+  --color-focus: #1769aa;
+
+  /* Semantic Colors */
+  --color-success: #256b45;
+  --color-success-soft: #e8f4ec;
+  --color-warning: #875900;
+  --color-warning-soft: #fff3d6;
+  --color-danger: #b4232d;
+  --color-danger-soft: #fcebec;
+  --color-info: #245d8f;
+  --color-info-soft: #eaf2fa;
+
+  /* Typography Scale */
+  --font-family-base: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --font-size-xs: 0.75rem;     /* 12px */
+  --font-size-sm: 0.875rem;    /* 14px */
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-lg: 1.125rem;    /* 18px */
+  --font-size-xl: 1.375rem;    /* 22px */
+  --font-size-2xl: 1.75rem;    /* 28px */
+  --font-size-3xl: 2.25rem;    /* 36px */
+
+  --line-height-tight: 1.25;
+  --line-height-base: 1.5;
+  --line-height-relaxed: 1.625;
+
+  /* Spacing Scale (4px multiple) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radii & Shadows */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 3px rgba(20, 35, 27, 0.06);
+  --shadow-md: 0 4px 12px rgba(20, 35, 27, 0.08);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+}
