@@ -9,7 +9,10 @@ from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional, Tuple
 from PIL import Image
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -55,6 +58,16 @@ class AIForensicsService:
         """Initialize ONNX Runtime inference session on localhost CPU."""
         if self._initialized and self._session is not None:
             return True
+
+        global np
+        if np is None:
+            try:
+                import numpy as _np
+                np = _np
+            except ImportError:
+                self._init_error = "NumPy package is not installed."
+                logger.warning("AI Forensics unavailable: %s", self._init_error)
+                return False
 
         if not self.model_path.exists():
             self._init_error = f"Model checkpoint not found at {self.model_path}"
