@@ -3,6 +3,24 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _default_storage_root() -> str:
+    env_storage = os.getenv("STORAGE_ROOT")
+    if env_storage:
+        return env_storage
+    if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        return "/tmp/storage"
+    return "./storage"
+
+
+def _default_database_url() -> str:
+    env_db = os.getenv("DATABASE_URL")
+    if env_db:
+        return env_db
+    if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        return "sqlite:////tmp/haven.db"
+    return "sqlite:///./haven.db"
+
+
 def _resolve_default_model_path() -> str:
     env_path = os.getenv("AI_MODEL_PATH")
     if env_path:
@@ -42,8 +60,8 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     API_V1_PREFIX: str = "/api/v1"
 
-    DATABASE_URL: str = "sqlite:///./haven.db"
-    STORAGE_ROOT: str = "./storage"
+    DATABASE_URL: str = Field(default_factory=_default_database_url)
+    STORAGE_ROOT: str = Field(default_factory=_default_storage_root)
     MAX_UPLOAD_SIZE_MB: int = 25
 
     FRONTEND_ORIGIN: str = "http://localhost:5173"

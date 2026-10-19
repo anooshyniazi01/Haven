@@ -24,9 +24,23 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup and shutdown lifecycle management."""
     logger.info("Initializing Haven Backend [%s mode]", settings.APP_ENV)
 
-    # Ensure local storage root directory exists
-    os.makedirs(settings.STORAGE_ROOT, exist_ok=True)
-    logger.info("Validated private storage root at: %s", settings.STORAGE_ROOT)
+    # Ensure local storage root directory exists (handle read-only serverless filesystems)
+    try:
+        os.makedirs(settings.STORAGE_ROOT, exist_ok=True)
+        logger.info("Validated private storage root at: %s", settings.STORAGE_ROOT)
+    except OSError as e:
+        logger.warning("Could not create storage root %s: %s. Using /tmp/storage", settings.STORAGE_ROOT, e)
+        settings.STORAGE_ROOT = "/tmp/storage"
+        os.makedirs(settings.STORAGE_ROOT, exist_ok=True)
+
+    # Initialize SQLite database schema
+    try:
+        from app.db.base import Base
+        from app.db.session import engine
+        import app.db.models
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:
+        logger.warning("Database schema check notice: %s", exc)
 
     yield
 
