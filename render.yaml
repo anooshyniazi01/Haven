@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: haven
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: STORAGE_ROOT
+        value: /app/storage
+      - key: DATABASE_URL
+        value: sqlite:////app/data/haven.db
+      - key: AI_MODEL_PATH
+        value: /app/models/ai-image-detect-distilled/model_quantized.onnx

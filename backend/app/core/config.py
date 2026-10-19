@@ -1,15 +1,35 @@
-import sys
-from pathlib import Path
+import os
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Ensure D drive virtual environment packages are discoverable on this machine
-_d_site_packages = Path(r"D:\Haven_backend_venv\Lib\site-packages")
-if _d_site_packages.exists() and str(_d_site_packages) not in sys.path:
-    sys.path.insert(0, str(_d_site_packages))
+
+def _resolve_default_model_path() -> str:
+    env_path = os.getenv("AI_MODEL_PATH")
+    if env_path:
+        return env_path
+    # Check repository models directory
+    repo_model = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "..",
+            "models",
+            "ai-image-detect-distilled",
+            "model_quantized.onnx",
+        )
+    )
+    if os.path.exists(repo_model):
+        return repo_model
+    # Check local Windows dev drive path
+    d_path = r"D:\haven_models\ai-image-detect-distilled\model_quantized.onnx"
+    if os.path.exists(d_path):
+        return d_path
+    return "./models/ai-image-detect-distilled/model_quantized.onnx"
 
 
 class Settings(BaseSettings):
-    """Haven application settings loaded from environment variables."""
+    """Application runtime configuration with safe defaults."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -30,11 +50,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Core AI Forensics configuration
-    AI_MODEL_PATH: str = r"D:\haven_models\ai-image-detect-distilled\model_quantized.onnx"
+    AI_MODEL_PATH: str = Field(default_factory=_resolve_default_model_path)
     AI_MODEL_NAME: str = "ai-image-detect-distilled-onnx"
     AI_MODEL_VERSION: str = "1.0.0"
     AI_MODEL_TASK: str = "ai_generated_image_detection"
 
 
 settings = Settings()
-

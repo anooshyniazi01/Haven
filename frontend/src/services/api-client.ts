@@ -27,8 +27,10 @@ export class ApiError extends Error {
 export const API_BASE_URL: string =
   (typeof import.meta !== "undefined" &&
     import.meta.env &&
-    (import.meta.env.VITE_API_BASE_URL as string)) ||
-  "http://localhost:8000";
+    (import.meta.env.VITE_API_BASE_URL as string)) ??
+  (typeof window !== "undefined" && window.location && window.location.origin
+    ? (window.location.port === "5173" ? "http://localhost:8000" : "")
+    : "http://localhost:8000");
 
 interface RequestOptions extends RequestInit {
   timeoutMs?: number;
