@@ -24,13 +24,17 @@ export class ApiError extends Error {
   }
 }
 
-export const API_BASE_URL: string =
-  (typeof import.meta !== "undefined" &&
-    import.meta.env &&
-    (import.meta.env.VITE_API_BASE_URL as string)) ??
-  (typeof window !== "undefined" && window.location && window.location.origin
-    ? (window.location.port === "5173" ? "http://localhost:8000" : "")
-    : "http://localhost:8000");
+function getApiBaseUrl(): string {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) {
+    return String(import.meta.env.VITE_API_BASE_URL);
+  }
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    return window.location.port === '5173' ? 'http://localhost:8000' : '';
+  }
+  return 'http://localhost:8000';
+}
+
+export const API_BASE_URL: string = getApiBaseUrl();
 
 interface RequestOptions extends RequestInit {
   timeoutMs?: number;
