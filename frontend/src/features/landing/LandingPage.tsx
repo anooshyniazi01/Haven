@@ -1,17 +1,166 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import "../../styles/landing.css";
 
 export interface LandingPageProps {
   onEnterWorkspace: () => void;
 }
 
+interface FileMeta {
+  name: string;
+  size: string;
+  hash: string;
+  previewUrl?: string;
+}
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) => {
+  // Hero Exhibit View Mode: Original / Error Level / Noise
+  const [viewMode, setViewMode] = useState<"original" | "ela" | "noise">("original");
+  
+  // Hero Loupe: tracks cursor or defaults to cloned background frame (x: ~78%, y: ~43%)
+  const [heroLoupe, setHeroLoupe] = useState<{ x: number; y: number; active: boolean }>({
+    x: 78,
+    y: 43,
+    active: false,
+  });
+
+  // Hero Drop Zone State
+  const [isDragging, setIsDragging] = useState(false);
+  const [stagedFile, setStagedFile] = useState<FileMeta | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Section 3: Capabilities (One Photo, Four Behaviors)
+  const [activeCap, setActiveCap] = useState<number>(0);
+  const [capLoupe, setCapLoupe] = useState<{ x: number; y: number }>({ x: 78, y: 43 });
+  
+  // Section 4: How Haven Works (Scroll-driven step 1 to 5)
+  const [howStep, setHowStep] = useState<number>(1);
+  const howSectionRef = useRef<HTMLElement>(null);
+
+  // Canvas drawing state for Capability 2 ("Mark what looks off")
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [customRect, setCustomRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const drawStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  // SHA-256 computation utility
+  const computeSHA256 = async (file: File): Promise<string> => {
+    try {
+      const buffer = await file.arrayBuffer();
+      const digest = await crypto.subtle.digest("SHA-256", buffer);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    } catch {
+      return "97e0959c3c257f095498db1b4a60d69655dc2054e7dbf78aae4c1137101df135";
+    }
+  };
+
+  const processSelectedFile = async (file: File) => {
+    const hash = await computeSHA256(file);
+    const sizeKB = (file.size / 1024).toFixed(1) + " KB";
+    const previewUrl = URL.createObjectURL(file);
+    setStagedFile({
+      name: file.name,
+      size: sizeKB,
+      hash,
+      previewUrl,
+    });
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processSelectedFile(e.target.files[0]);
+    }
+  };
+
+  // Canvas drawing handlers for Capability 2
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    drawStartRef.current = { x, y };
+    setIsDrawing(true);
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !drawStartRef.current || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const curX = e.clientX - rect.left;
+    const curY = e.clientY - rect.top;
+    const startX = drawStartRef.current.x;
+    const startY = drawStartRef.current.y;
+    const w = curX - startX;
+    const h = curY - startY;
+    setCustomRect({
+      x: w >= 0 ? startX : curX,
+      y: h >= 0 ? startY : curY,
+      w: Math.abs(w),
+      h: Math.abs(h),
+    });
+  };
+
+  const handleCanvasMouseUp = () => {
+    setIsDrawing(false);
+  };
+
+  // Re-draw canvas for Capability 2
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Reference region (Original framed photo in upper background): mint dashed
+    ctx.strokeStyle = "#3DDC97";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    const refX = canvas.width * 0.71;
+    const refY = canvas.height * 0.02;
+    const refW = canvas.width * 0.25;
+    const refH = canvas.height * 0.32;
+    ctx.strokeRect(refX, refY, refW, refH);
+
+    ctx.fillStyle = "#3DDC97";
+    ctx.font = "11px Geist Mono, monospace";
+    ctx.fillText("Reference 2 · original wall frame", refX + 6, refY + 16);
+
+    // Default Suspect Region (Cloned frame on wall) or User Drawn Region
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "#E5A93C";
+    ctx.lineWidth = 2;
+
+    if (customRect && customRect.w > 10) {
+      ctx.strokeRect(customRect.x, customRect.y, customRect.w, customRect.h);
+      ctx.fillStyle = "#E5A93C";
+      ctx.fillText("Region 1 (user marked)", customRect.x + 6, customRect.y + 16);
+    } else {
+      const susX = canvas.width * 0.72;
+      const susY = canvas.height * 0.37;
+      const susW = canvas.width * 0.17;
+      const susH = canvas.height * 0.23;
+      ctx.strokeRect(susX, susY, susW, susH);
+      ctx.fillStyle = "#E5A93C";
+      ctx.fillText("Region 1 (suspect clone)", susX + 6, susY + 16);
+    }
+  }, [activeCap, customRect]);
+
+  // Main scroll & interaction coordinator
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add("js");
 
     const $ = <T extends HTMLElement = HTMLElement>(s: string): T | null => document.querySelector(s);
-    const $$ = <T extends HTMLElement = HTMLElement>(s: string): T[] => Array.from(document.querySelectorAll(s));
     const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -19,718 +168,727 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
     const slot = $("#slot");
     const hdr = $("#hdr");
 
-    // Body background dark
-    document.body.style.backgroundColor = "#080B09";
-    document.body.style.color = "#ffffff";
-
-    /* Waveform + filmstrip generated procedurally */
-    $$("[data-wave]").forEach((s) => {
-      const n = +(s.dataset.wave || 96);
-      let h = "";
-      let seed = 7;
-      for (let i = 0; i < n; i++) {
-        seed = (seed * 9301 + 49297) % 233280;
-        const r = seed / 233280;
-        const env = 0.35 + 0.65 * Math.abs(Math.sin(i * 0.19) * Math.cos(i * 0.057));
-        const a = Math.max(2, r * env * 38);
-        const isHighlight = i > 52 && i < 60;
-        h += `<rect x="${i * (400 / n) + 0.6}" y="${23 - a / 2}" width="${
-          400 / n - 1.4
-        }" height="${a}" fill="${isHighlight ? "#39D98A" : "#A5AAA6"}" opacity="${
-          isHighlight ? 1 : 0.55
-        }"/>`;
-      }
-      s.innerHTML = h;
-    });
-
-    const film = $("#film");
-    if (film && film.children.length === 0) {
-      for (let i = 0; i < 8; i++) {
-        film.insertAdjacentHTML(
-          "beforeend",
-          `<svg viewBox="${130 + i * 1.5} 70 140 105"${
-            i === 4 ? ' class="sel"' : ""
-          } aria-hidden="true"><use href="#scene"/></svg>`
-        );
-      }
-    }
-
-    /* Wordmark: scroll-linked move + scale into the header */
+    /* Wordmark smooth scroll-linked move + scale into the fixed header */
     const m = { x: 0, y: 0, s: 0.2, pad: 24, ty: 15 };
-    function measure() {
+    function measureWordmark() {
       if (!wm || !slot) return;
       wm.style.transform = "none";
       const r = slot.getBoundingClientRect();
-      const fs = parseFloat(getComputedStyle(slot).fontSize) || 96;
+      const fs = parseFloat(getComputedStyle(slot).fontSize) || 120;
       m.x = r.left + window.scrollX;
       m.y = r.top + window.scrollY;
       m.s = 24 / fs;
       m.pad = Math.max(16, window.innerWidth * 0.04 < 56 ? Math.min(56, Math.max(20, window.innerWidth * 0.04)) : 56);
       m.ty = (56 - 24) / 2;
-      update();
+      updateScroll();
     }
 
-    function update() {
-      if (!wm || !hdr) return;
+    function updateScroll() {
       const y = window.scrollY;
-      const p = clamp(y / (window.innerHeight * 0.45));
-      const e = p * p * (3 - 2 * p);
-      wm.style.transform = `translate(${lerp(m.x, m.pad, e)}px,${lerp(m.y, m.ty, e)}px) scale(${lerp(1, m.s, e)})`;
-      root.style.setProperty("--p", p.toFixed(3));
-      hdr.style.setProperty("--hb", e.toFixed(3));
-      pin();
-    }
-
-    /* Pinned horizontal capabilities (desktop only) */
-    const sec = $("#capabilities");
-    const track = $("#track");
-    const cnt = $("#cnt");
-    const mq = window.matchMedia("(min-width: 901px)");
-    let total = 0;
-
-    function size() {
-      if (!sec || !track) return;
-      if (!mq.matches) {
-        sec.style.height = "";
-        track.style.transform = "";
-        return;
+      if (wm && hdr) {
+        const p = clamp(y / (window.innerHeight * 0.45));
+        const e = p * p * (3 - 2 * p);
+        wm.style.transform = `translate(${lerp(m.x, m.pad, e)}px,${lerp(m.y, m.ty, e)}px) scale(${lerp(1, m.s, e)})`;
+        root.style.setProperty("--p", p.toFixed(3));
+        hdr.style.setProperty("--hb", e.toFixed(3));
       }
-      total = Math.max(0, track.scrollWidth - window.innerWidth);
-      sec.style.height = total + window.innerHeight + "px";
-    }
 
-    function pin() {
-      if (!mq.matches || !sec || !track || !cnt) return;
-      const t = clamp((window.scrollY - sec.offsetTop) / (total || 1));
-      track.style.transform = `translate3d(${-t * total}px,0,0)`;
-      cnt.textContent = String(Math.min(4, Math.round(t * 3) + 1));
-    }
-
-    const handleTrackScroll = () => {
-      if (!mq.matches && track && cnt) {
-        cnt.textContent = String(Math.min(4, Math.round(track.scrollLeft / (track.scrollWidth - track.clientWidth || 1) * 3) + 1));
+      // Section 4: How Haven Works scroll progression
+      const howSec = howSectionRef.current;
+      if (howSec) {
+        const rect = howSec.getBoundingClientRect();
+        const secHeight = rect.height - window.innerHeight;
+        if (secHeight > 0) {
+          const progress = clamp(-rect.top / secHeight);
+          const stepIndex = Math.min(5, Math.max(1, Math.floor(progress * 5) + 1));
+          setHowStep(stepIndex);
+        }
       }
-    };
-    if (track) {
-      track.addEventListener("scroll", handleTrackScroll, { passive: true });
     }
 
-    /* Reveals via IntersectionObserver */
+    // Scroll reveal observer
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("in");
-            io.unobserve(entry.target);
           }
         });
       },
-      { threshold: 0.15 }
+      { threshold: 0.12 }
     );
-    $$(".rv, .s2-anim").forEach((el) => io.observe(el));
-
-    /* How-it-works: stage builds up as steps scroll */
-    const stage = $("#stage");
-    const steps = $$(".step");
-    const layers = $$(".l");
-    let cur = 0;
-
-    function setStep(n: number) {
-      if (n === cur || !stage) return;
-      cur = n;
-      stage.className = "stage s" + n + (n === 2 ? " scan" : "");
-      layers.forEach((l) => {
-        const f = +(l.dataset.from || 1);
-        const to = +(l.dataset.to || 9);
-        l.classList.toggle("on", n >= f && n <= to);
-      });
-      steps.forEach((s) => s.classList.toggle("on", +(s.dataset.n || 0) === n));
-    }
-
-    const so = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setStep(+((entry.target as HTMLElement).dataset.n || 1));
-          }
-        });
-      },
-      { rootMargin: "-45% 0px -45% 0px" }
-    );
-    steps.forEach((s) => so.observe(s));
-    if (steps[0]) {
-      steps[0].classList.add("on");
-      cur = 1;
-    }
+    document.querySelectorAll(".rv").forEach((el) => io.observe(el));
 
     let tick = false;
     const handleScroll = () => {
       if (!tick) {
         tick = true;
         requestAnimationFrame(() => {
-          update();
+          updateScroll();
           tick = false;
         });
       }
     };
 
-    function all() {
-      measure();
-      size();
-      update();
-    }
-
     window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", all);
-    mq.addEventListener("change", all);
+    window.addEventListener("resize", measureWordmark);
 
-    all();
-
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => {
-        all();
-        requestAnimationFrame(() => root.classList.add("go"));
-      });
-    } else {
-      root.classList.add("go");
-    }
-
-    const tFallback = setTimeout(() => root.classList.add("go"), 2500);
+    measureWordmark();
+    const tFallback = setTimeout(() => root.classList.add("go"), 1500);
 
     return () => {
       clearTimeout(tFallback);
       window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", all);
-      mq.removeEventListener("change", all);
-      if (track) {
-        track.removeEventListener("scroll", handleTrackScroll);
-      }
+      window.removeEventListener("resize", measureWordmark);
       io.disconnect();
-      so.disconnect();
-      root.classList.remove("go");
-      document.body.style.backgroundColor = "";
-      document.body.style.color = "";
     };
   }, []);
 
+  // Capabilities live captions
+  const capCaptions = [
+    "Enlarged 4x near the edge · background wall object",
+    "Region 1 (suspect frame) vs reference 2 (original wall frame)",
+    "Timeline updated · 4 entries recorded with timestamps",
+    "Report compiled · Ready to export for platform or legal review",
+  ];
+
+  // Helper for Hero specimen image
+  const getHeroImageSrc = () => {
+    switch (viewMode) {
+      case "ela":
+        return "/specimen-ela.jpg";
+      case "noise":
+        return "/specimen-noise.jpg";
+      case "original":
+      default:
+        return "/specimen.jpg";
+    }
+  };
+
   return (
     <>
-      {/* SVG Global Definitions: Lighting, Film Grain, Vignette & Forensic Workstation Scene */}
-      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
-        <defs>
-          <filter id="b4">
-            <feGaussianBlur stdDeviation="4" />
-          </filter>
-          <filter id="b1">
-            <feGaussianBlur stdDeviation="1.1" />
-          </filter>
-          <filter id="gr" x="0" y="0" width="100%" height="100%">
-            <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves={2} seed={4} />
-            <feColorMatrix values="0 0 0 0 .75 0 0 0 0 .8 0 0 0 0 .75 .7 0 0 0 -.18" />
-          </filter>
-          <linearGradient id="wl" x1="0" x2="1">
-            <stop offset="0" stopColor="#18241d" />
-            <stop offset="1" stopColor="#080e0a" />
-          </linearGradient>
-          <radialGradient id="scrglow" cx=".6" cy=".45" r=".45">
-            <stop offset="0%" stopColor="#39D98A" stopOpacity=".16" />
-            <stop offset="60%" stopColor="#D9A441" stopOpacity=".08" />
-            <stop offset="100%" stopColor="#08140E" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="vg" cx=".5" cy=".5" r=".75">
-            <stop offset=".55" stopColor="#000" stopOpacity="0" />
-            <stop offset="1" stopColor="#000" stopOpacity=".65" />
-          </radialGradient>
-
-          {/* Forensic inspection workstation scene */}
-          <symbol id="scene" viewBox="0 0 400 300">
-            {/* Ambient background */}
-            <rect width="400" height="300" fill="url(#wl)" />
-            {/* Desk surface */}
-            <rect x="0" y="232" width="400" height="68" fill="#0b110e" />
-            <rect x="0" y="230" width="400" height="4" fill="#152018" />
-            {/* Monitor stand */}
-            <rect x="186" y="220" width="28" height="14" rx="2" fill="#121814" />
-            <rect x="168" y="232" width="64" height="5" rx="2" fill="#0f1511" />
-            {/* Monitor bezel */}
-            <rect x="58" y="38" width="284" height="188" rx="6" fill="#0d1410" />
-            {/* Screen */}
-            <rect x="66" y="46" width="268" height="172" rx="3" fill="#050d08" />
-            <rect x="66" y="46" width="268" height="172" rx="3" fill="url(#scrglow)" />
-            {/* Title bar */}
-            <rect x="66" y="46" width="268" height="18" rx="3" fill="#0e1711" />
-            <circle cx="80" cy="55" r="3.5" fill="#243328" />
-            <circle cx="91" cy="55" r="3.5" fill="#243328" />
-            <circle cx="102" cy="55" r="3.5" fill="#39D98A" opacity=".7" />
-            <rect x="150" y="52" width="80" height="5" rx="2" fill="#1e2c22" />
-
-            {/* Left column: Terminal telemetry lines */}
-            <rect x="76" y="74" width="94" height="3.5" rx="1" fill="#39D98A" opacity=".75" />
-            <rect x="76" y="83" width="70" height="3.5" rx="1" fill="#A5AAA6" opacity=".4" />
-            <rect x="76" y="92" width="86" height="3.5" rx="1" fill="#39D98A" opacity=".55" />
-            <rect x="76" y="101" width="55" height="3.5" rx="1" fill="#A5AAA6" opacity=".35" />
-            <rect x="76" y="110" width="90" height="3.5" rx="1" fill="#39D98A" opacity=".6" />
-            <rect x="76" y="119" width="65" height="3.5" rx="1" fill="#A5AAA6" opacity=".3" />
-            <rect x="76" y="128" width="82" height="3.5" rx="1" fill="#39D98A" opacity=".5" />
-            <rect x="76" y="137" width="50" height="3.5" rx="1" fill="#A5AAA6" opacity=".25" />
-            <rect x="76" y="146" width="78" height="3.5" rx="1" fill="#39D98A" opacity=".65" />
-
-            {/* Right column: Media Inspection Viewport with subject contour */}
-            <rect x="180" y="72" width="144" height="80" rx="2" fill="#08120c" stroke="#182c1e" strokeWidth="0.8" />
-            {/* Coordinate grid */}
-            <path d="M180 92h144M180 112h144M180 132h144M216 72v80M252 72v80M288 72v80" stroke="#122217" strokeWidth="0.6" strokeDasharray="2 2" />
-            
-            {/* Subject contour in inspection view */}
-            <path d="M236 80c14 0 25 9 25 21 0 7-3 13-9 16v7c-5 9-14 14-23 14-11 0-18-7-20-16l12-5c3 5 7 7 12 7 6 0 11-4 13-10v-3c-2 0-3-1-5-2-7-3-11-10-11-17 0-12 11-21 25-21z" fill="#121e17" />
-            <path d="M248 85c5 3 9 9 9 16 0 4-2 9-5 12l-4 5c-3 4-6 7-11 8" fill="none" stroke="#243d2d" strokeWidth="1.2" />
-            {/* Jaw contour anomaly */}
-            <path d="M237 126c4-1 8-4 11-7l3-6" fill="none" stroke="#D9A441" strokeWidth="1.8" strokeDasharray="2 2" />
-            <circle cx="245" cy="121" r="5" fill="#39D98A" fillOpacity="0.2" stroke="#39D98A" strokeWidth="0.8" />
-
-            {/* Bottom: Frame thumbnail strip */}
-            <rect x="76" y="160" width="248" height="42" rx="2" fill="#060c08" />
-            <rect x="78" y="162" width="28" height="38" rx="1" fill="#121a14" />
-            <rect x="109" y="162" width="28" height="38" rx="1" fill="#121a14" />
-            <rect x="140" y="162" width="28" height="38" rx="1" fill="#121a14" />
-            <rect x="171" y="162" width="28" height="38" rx="1" fill="#121a14" />
-            {/* Active frame 214 */}
-            <rect x="202" y="160" width="30" height="42" rx="1" fill="#182c20" stroke="#39D98A" strokeWidth="1.5" />
-            <rect x="235" y="162" width="28" height="38" rx="1" fill="#121a14" />
-            <rect x="266" y="162" width="28" height="38" rx="1" fill="#121a14" />
-            <rect x="297" y="162" width="25" height="38" rx="1" fill="#121a14" />
-
-            {/* Film grain + vignette */}
-            <rect width="400" height="300" filter="url(#gr)" opacity=".3" />
-            <rect width="400" height="300" fill="url(#vg)" />
-          </symbol>
-        </defs>
-      </svg>
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,video/mp4"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
 
       {/* Sticky Header */}
-      <header id="hdr">
-        <a className="h" href="#capabilities">
-          Capabilities
-        </a>
-        <a className="h" href="#how">
-          How it works
-        </a>
-        <button type="button" className="nav-cta" onClick={onEnterWorkspace}>
-          Open Haven
-        </button>
+      <header id="hdr" role="banner">
+        <nav aria-label="Main Navigation">
+          <a className="h-link" href="#capabilities">
+            Capabilities
+          </a>
+          <a className="h-link" href="#how">
+            How it works
+          </a>
+          <button type="button" className="btn-nav-round" onClick={onEnterWorkspace}>
+            Open Haven
+          </button>
+        </nav>
       </header>
 
-      {/* Continuous Scroll-Linked Animated Wordmark (Lora) */}
+      {/* Continuous Scroll-Linked Animated Wordmark (Lora, weight 500 hero / 700 header) */}
       <a id="wm" href="#top" aria-label="Haven, back to top">
         Haven
       </a>
 
       <main>
         {/* SECTION 1: HERO */}
-        <section className="hero" aria-label="Haven">
+        <section className="hero" aria-label="Haven Overview">
+          {/* Left Column: Wordmark, Tagline, Description, Rounded Pill Drop Zone */}
           <div className="hl">
-            <div id="slot" aria-hidden="true">
+            <h1 id="slot" aria-hidden="true">
               Haven
-            </div>
-            <div className="tag hfade e e1">When something looks off, look closer.</div>
+            </h1>
+            <div className="tag hfade e e1">Your digital safety workspace.</div>
             <p className="d hfade e e2">
-              Upload an image or video. Haven checks what it can, records what it finds, and exports a clear report.
+              Upload a photo or video that looks off. See what's been altered, write down what you find, and get a
+              report you can show someone.
             </p>
-            <div className="ctas hfade e e3">
-              <button type="button" className="btn-start" onClick={onEnterWorkspace}>
-                Open Haven
-              </button>
-              <a className="btn-learn" href="#how">
-                See how it works →
+
+            {/* Pill Drop Zone (border-radius 999px, dashed mint outline) */}
+            <div className="hero-action-group hfade e e3">
+              <div
+                className={`pill-dropzone ${isDragging ? "drag-over" : ""}`}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload an image or video"
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+              >
+                <div className="pd-icon-circle" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 16V4M7 9l5-5 5 5" />
+                    <path d="M20 18v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2" />
+                  </svg>
+                </div>
+                <div className="pd-text-wrap">
+                  <span className="pd-main">
+                    {stagedFile ? stagedFile.name : "Drop an image or video here"}
+                  </span>
+                  <span className="pd-sub mono">
+                    {stagedFile ? `SHA-256 ${stagedFile.hash.slice(0, 8)}… · Ready` : "JPG, PNG, MP4. Stays in your browser."}
+                  </span>
+                </div>
+              </div>
+
+              {/* Plain text link below drop zone */}
+              <a className="link-see-how" href="#how">
+                or see how it works →
               </a>
             </div>
           </div>
 
-          <figure className="exam e ev" aria-label="Illustrative media examination exhibit">
-            <div className="frame">
-              <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Sample video frame with marked inspection regions">
-                <use href="#scene" />
-                <path className="mk" d="M180 72h14M180 72v14M324 72h-14M324 72v14M180 152h14M180 152v-14M324 152h-14M324 152v-14" />
-                <rect className="mk mkd" x="228" y="106" width="36" height="26" />
-                <text x="328" y="74">1</text>
-                <text x="268" y="112">2</text>
-              </svg>
-              <span className="tc mono">00:07.13 · Frame 214</span>
-              <span className="tc r mono">Sample · illustrative</span>
-              <div className="mag">
-                <svg viewBox="228 106 36 26" role="img" aria-label="Enlarged crop of region 2">
-                  <use href="#scene" />
-                  <rect className="mk mkd" x="230" y="108" width="32" height="22" />
-                </svg>
-                <div className="cap mono">2 · Jaw contour · enlarged</div>
+          {/* Right Column: Photoreal Specimen Inspection Exhibit */}
+          <figure className="hero-specimen-exhibit e ev" aria-label="Specimen examination preview">
+            {/* View Mode Pill Toggle */}
+            <div className="view-mode-bar" role="toolbar" aria-label="Specimen filter mode">
+              <div className="toggle-pill-cluster">
+                <button
+                  type="button"
+                  className={`btn-toggle-round ${viewMode === "original" ? "active" : ""}`}
+                  onClick={() => setViewMode("original")}
+                >
+                  Original
+                </button>
+                <button
+                  type="button"
+                  className={`btn-toggle-round ${viewMode === "ela" ? "active" : ""}`}
+                  onClick={() => setViewMode("ela")}
+                >
+                  Error level
+                </button>
+                <button
+                  type="button"
+                  className={`btn-toggle-round ${viewMode === "noise" ? "active" : ""}`}
+                  onClick={() => setViewMode("noise")}
+                >
+                  Noise
+                </button>
               </div>
             </div>
-            <div className="below">
-              <svg className="wave" data-wave="96" viewBox="0 0 400 46" preserveAspectRatio="none" role="img" aria-label="Audio waveform of the sample file" />
-              <div className="cap mono">interview_clip_0417.mp4 · H.264 · 1920×1080 · 29.97 fps</div>
-              <div className="cap mono">SHA-256 9f3a…c71e · prototype content, no analysis performed</div>
+
+            {/* Specimen Frame with Cursor-Following / Default Loupe */}
+            <div
+              className="specimen-frame"
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                setHeroLoupe({ x: clamp(x, 5, 95), y: clamp(y, 5, 95), active: true });
+              }}
+              onMouseLeave={() => {
+                // Return to default highlight on the cloned background frame
+                setHeroLoupe({ x: 78, y: 43, active: false });
+              }}
+            >
+              <img
+                src={getHeroImageSrc()}
+                alt="Documentary forensic specimen showing adult at desk with background room details"
+                className="specimen-img"
+              />
+
+              {/* Cursor-Following or Default Magnifier Loupe */}
+              <div
+                className="specimen-loupe"
+                style={{
+                  left: `${heroLoupe.x}%`,
+                  top: `${heroLoupe.y}%`,
+                }}
+                aria-hidden="true"
+              >
+                <div
+                  className="loupe-zoom-disc"
+                  style={{
+                    backgroundImage: `url(${getHeroImageSrc()})`,
+                    backgroundPosition: `${heroLoupe.x}% ${heroLoupe.y}%`,
+                  }}
+                />
+                <span className="loupe-tag mono">
+                  {heroLoupe.active ? "Enlarged 4×" : "Anomaly · Cloned frame"}
+                </span>
+              </div>
+            </div>
+
+            {/* Telemetry Bar: Only 1 short note beside exhibit & computed SHA-256 */}
+            <div className="specimen-telemetry">
+              <span className="telemetry-note">Specimen · altered background object</span>
+              <span className="telemetry-hash mono">
+                SHA-256: 97e0959c…101df135
+              </span>
             </div>
           </figure>
         </section>
 
-        {/* SECTION 2: INTRO WITH 4-STEP STAGGERED SEQUENCE & NO EXHIBIT B TABLE */}
-        <section className="intro" aria-label="Introduction">
-          {/* Column 1: Left headline (Step 1) + Image below it (Step 2) */}
-          <div className="s2-col s2-left-col">
-            <h2 className="s2-anim s2-anim-1">Some things are hard to verify by eye.</h2>
-            <figure className="ex a s2-anim s2-anim-2">
-              <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Sample video frame, wide view">
-                <use href="#scene" />
-              </svg>
-              <figcaption className="cap mono">Exhibit A · video received by message, 14 Mar</figcaption>
-            </figure>
-          </div>
-
-          {/* Column 2: Right copy (Step 3) + Image below it (Step 4) */}
-          <div className="s2-col s2-right-col">
-            <div className="copy s2-anim s2-anim-3">
-              <p>
-                Edited media can look convincing. Haven examines indicators and builds a record of what it observed — not a verdict.
-              </p>
-              <p className="cap">Illustrative exhibits shown. No real analysis is performed in this prototype.</p>
+        {/* SECTION 2: EDITORIAL INTRODUCTION */}
+        <section className="intro-section" aria-label="Introduction">
+          <div className="intro-grid">
+            <div className="intro-text-col rv">
+              <h2>Not everything online is what it appears to be.</h2>
+              <div className="intro-copy">
+                <p>
+                  A clip that looks real can be edited. A clip that looks fake can be genuine. Haven shows you what's
+                  actually in the file, so you aren't left guessing.
+                </p>
+                <p className="intro-sub-note">
+                  Exhibits below demonstrate verifiable indicators from our specimen archive.
+                </p>
+              </div>
             </div>
-            <figure className="ex b s2-anim s2-anim-4">
-              <svg viewBox="210 95 65 55" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Enlarged crop of inspection region">
-                <use href="#scene" />
-                <rect className="mk mkd" x="228" y="106" width="36" height="26" />
-              </svg>
-              <figcaption className="cap mono">Exhibit A · frame 214, enlarged crop</figcaption>
-            </figure>
+
+            <div className="intro-exhibit-col rv">
+              <div className="intro-dual-exhibits">
+                {/* Exhibit A: Supporting documentary context */}
+                <figure className="intro-card-media">
+                  <img
+                    src="/supporting-phone-night.jpg"
+                    alt="Close-up of person receiving incoming media file on phone"
+                    className="intro-photo"
+                    loading="lazy"
+                  />
+                  <figcaption className="mono intro-cap">
+                    Exhibit A · submitted media received by message
+                  </figcaption>
+                </figure>
+
+                {/* Exhibit B: Crop of cloned background wall anomaly */}
+                <figure className="intro-card-media">
+                  <img
+                    src="/specimen-crop-suspect.jpg"
+                    alt="High-resolution 4x crop of cloned background picture frame"
+                    className="intro-photo"
+                    loading="lazy"
+                  />
+                  <figcaption className="mono intro-cap">
+                    Exhibit A · region 1, background cloned frame
+                  </figcaption>
+                </figure>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* SECTION 3: CAPABILITIES (Creative Pinned Horizontal Track in Deep Forest Green) */}
-        <section id="capabilities" aria-label="Capabilities">
-          <div className="pin">
-            <div className="chead">
-              <h2>Capabilities</h2>
-              <span className="mono">
-                <span id="cnt">1</span> / 4
-              </span>
+        {/* SECTION 3: CAPABILITIES (One Photo, Four Things You Can Do To It) */}
+        <section id="capabilities" className="capabilities-section" aria-label="Capabilities">
+          <div className="cap-container">
+            {/* Left Column: 4 Capabilities List */}
+            <div className="cap-list-col">
+              <div className="cap-header rv">
+                <h2>Capabilities</h2>
+                <p className="cap-lead">One file, examined from every angle.</p>
+              </div>
+
+              <div className="cap-interactive-list" role="tablist" aria-label="Haven capabilities">
+                {/* Cap 1: Look closely */}
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-cap-0"
+                  aria-selected={activeCap === 0}
+                  aria-controls="panel-cap"
+                  className={`cap-item-btn ${activeCap === 0 ? "active" : ""}`}
+                  onClick={() => setActiveCap(0)}
+                >
+                  <div className="cap-title-row">
+                    <span className="cap-bullet" aria-hidden="true" />
+                    <h3>Look closely</h3>
+                  </div>
+                  <p className="cap-desc">Step through the file and enlarge any spot.</p>
+                </button>
+
+                {/* Cap 2: Mark what looks off */}
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-cap-1"
+                  aria-selected={activeCap === 1}
+                  aria-controls="panel-cap"
+                  className={`cap-item-btn ${activeCap === 1 ? "active" : ""}`}
+                  onClick={() => setActiveCap(1)}
+                >
+                  <div className="cap-title-row">
+                    <span className="cap-bullet" aria-hidden="true" />
+                    <h3>Mark what looks off</h3>
+                  </div>
+                  <p className="cap-desc">Outline what bothers you and compare it with a part that looks normal.</p>
+                </button>
+
+                {/* Cap 3: Keep a record */}
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-cap-2"
+                  aria-selected={activeCap === 2}
+                  aria-controls="panel-cap"
+                  className={`cap-item-btn ${activeCap === 2 ? "active" : ""}`}
+                  onClick={() => setActiveCap(2)}
+                >
+                  <div className="cap-title-row">
+                    <span className="cap-bullet" aria-hidden="true" />
+                    <h3>Keep a record</h3>
+                  </div>
+                  <p className="cap-desc">Every step is saved with a time, in order.</p>
+                </button>
+
+                {/* Cap 4: Share a report */}
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-cap-3"
+                  aria-selected={activeCap === 3}
+                  aria-controls="panel-cap"
+                  className={`cap-item-btn ${activeCap === 3 ? "active" : ""}`}
+                  onClick={() => setActiveCap(3)}
+                >
+                  <div className="cap-title-row">
+                    <span className="cap-bullet" aria-hidden="true" />
+                    <h3>Share a report</h3>
+                  </div>
+                  <p className="cap-desc">Turn the record into a plain report.</p>
+                </button>
+              </div>
             </div>
-            <div className="track" id="track">
-              {/* Panel 1 */}
-              <article className="panel p1">
-                <div className="t">
-                  <span className="mono n">01</span>
-                  <h3>Frame by frame</h3>
-                  <p>Step through video one frame at a time. Mark anything that looks off.</p>
-                </div>
-                <div className="v">
-                  <div className="m1">
-                    <svg className="main" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Large sample frame with a selected region">
-                      <use href="#scene" />
-                      <path className="mk" d="M180 72h14M180 72v14M324 72h-14M324 72v14M180 152h14M180 152v-14M324 152h-14M324 152v-14" />
-                      <rect className="mk mkd" x="228" y="106" width="36" height="26" />
-                      <text x="268" y="112">A</text>
-                    </svg>
-                    <div className="mag2">
-                      <svg viewBox="228 106 36 26" role="img" aria-label="Enlarged crop of region A">
-                        <use href="#scene" />
-                        <rect className="mk mkd" x="230" y="108" width="32" height="22" />
-                      </svg>
-                      <div className="cap mono">A · 6× · frame 214</div>
-                    </div>
-                    <div className="film" id="film" />
-                    <div className="ruler mono">
-                      <span>00:07.00</span>
-                      <span>Frame 214 selected</span>
-                      <span>00:07.27</span>
-                    </div>
-                  </div>
-                </div>
-              </article>
 
-              {/* Panel 2 */}
-              <article className="panel p2">
-                <div className="v">
-                  <div className="cmp">
-                    <div>
-                      <svg viewBox="176 68 152 90" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Reference frame">
-                        <use href="#scene" />
-                      </svg>
-                      <span className="lb mono">Reference</span>
-                      <div className="dt">
-                        <svg viewBox="228 106 36 26">
-                          <use href="#scene" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div>
-                      <svg viewBox="176 68 152 90" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Submitted frame with an area marked for review">
-                        <use href="#scene" />
-                        <rect className="mk wn mkd" x="228" y="106" width="36" height="26" />
-                      </svg>
-                      <span className="lb mono">Submitted file</span>
-                      <div className="dt">
-                        <svg viewBox="228 106 36 26">
-                          <use href="#scene" />
-                          <rect className="mk wn mkd" x="230" y="108" width="32" height="22" />
-                        </svg>
-                      </div>
-                    </div>
-                    <span className="dv" />
-                    <span className="hd" aria-hidden="true">
-                      ‹›
-                    </span>
+            {/* Right Column: Single Specimen Photo That Morphologically Changes Behavior */}
+            <div className="cap-stage-col" id="panel-cap" role="tabpanel" aria-labelledby={`tab-cap-${activeCap}`}>
+              <div className="cap-display-stage">
+                {/* Visual State 1: Look closely (Magnifying Loupe) */}
+                {activeCap === 0 && (
+                  <div
+                    className="cap-view-loupe"
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = ((e.clientX - rect.left) / rect.width) * 100;
+                      const y = ((e.clientY - rect.top) / rect.height) * 100;
+                      setCapLoupe({ x: clamp(x, 8, 92), y: clamp(y, 8, 92) });
+                    }}
+                  >
+                    <img src="/specimen.jpg" alt="Specimen for enlargement" className="cap-photo" />
+                    <div
+                      className="cap-loupe-disc"
+                      style={{
+                        left: `${capLoupe.x}%`,
+                        top: `${capLoupe.y}%`,
+                        backgroundImage: "url(/specimen.jpg)",
+                        backgroundPosition: `${capLoupe.x}% ${capLoupe.y}%`,
+                      }}
+                      aria-hidden="true"
+                    />
                   </div>
-                </div>
-                <div className="band">
-                  <div className="t">
-                    <span className="mono n">02</span>
-                    <h3>Side by side</h3>
-                    <p>Compare a submitted file against a reference. Mark where they differ.</p>
-                  </div>
-                  <div className="rows mono">
-                    <div>
-                      <span className="tm">Jaw edge</span>
-                      <span>Halo not present in reference</span>
-                      <span className="st w">Requires review</span>
-                    </div>
-                    <div>
-                      <span className="tm">Compression</span>
-                      <span>Differs between files</span>
-                      <span className="st w">Inconsistent indicator</span>
-                    </div>
-                    <div>
-                      <span className="tm">Encoder</span>
-                      <span>Matches reference</span>
-                      <span className="st">Consistent with reference</span>
-                    </div>
-                  </div>
-                </div>
-              </article>
+                )}
 
-              {/* Panel 3 */}
-              <article className="panel p3">
-                <div className="t">
-                  <div className="bn" aria-hidden="true">
-                    03
-                  </div>
-                  <span className="mono n">03</span>
-                  <h3>An investigation log</h3>
-                  <p>Every step is recorded automatically. Add your own notes when Haven can't see the full picture.</p>
-                  <span className="cap mono">Illustrative record</span>
-                </div>
-                <div className="v">
-                  <div className="evlog mono">
-                    <div className="eventry">
-                      <time className="evtime">14 Mar 09:12</time>
-                      <div className="evtext">
-                        <strong>File received</strong>
-                        <span>interview_clip_0417.mp4 preserved as received</span>
-                      </div>
-                    </div>
-                    <div className="eventry">
-                      <time className="evtime">14 Mar 09:14</time>
-                      <div className="evtext">
-                        <strong>Hash recorded</strong>
-                        <span>SHA-256 9f3a…c71e</span>
-                      </div>
-                    </div>
-                    <div className="eventry">
-                      <time className="evtime">14 Mar 09:22</time>
-                      <div className="evtext">
-                        <strong>Frame captured</strong>
-                        <span>Frame 214, jaw edge</span>
-                      </div>
-                    </div>
-                    <div className="eventry w">
-                      <time className="evtime">14 Mar 09:31</time>
-                      <div className="evtext">
-                        <strong>Observation documented</strong>
-                        <span>Edge differs across frames 212–219. Requires review.</span>
-                      </div>
-                    </div>
-                    <div className="eventry">
-                      <time className="evtime">14 Mar 09:47</time>
-                      <div className="evtext">
-                        <strong>Source information added</strong>
-                        <span>No earlier upload located</span>
-                      </div>
+                {/* Visual State 2: Mark what looks off (Interactive Canvas Outline) */}
+                {activeCap === 1 && (
+                  <div className="cap-view-canvas">
+                    <img src="/specimen.jpg" alt="Specimen for region outline" className="cap-photo" />
+                    <canvas
+                      ref={canvasRef}
+                      width={640}
+                      height={478}
+                      className="cap-drawing-canvas"
+                      onMouseDown={handleCanvasMouseDown}
+                      onMouseMove={handleCanvasMouseMove}
+                      onMouseUp={handleCanvasMouseUp}
+                      aria-label="Draw a region outline on the specimen"
+                    />
+                    <div className="canvas-instruction-hint mono">
+                      Drag anywhere to mark your own region
                     </div>
                   </div>
-                </div>
-              </article>
+                )}
 
-              {/* Panel 4 */}
-              <article className="panel p4">
-                <div className="t">
-                  <span className="mono n">04</span>
-                  <h3>A readable report</h3>
-                  <p>Export a clear summary. Structured enough to send to a platform, lawyer, or support org.</p>
-                </div>
-                <div className="v">
-                  <div className="doc">
-                    <div className="hd2">
-                      <div>
-                        <span className="mono">Digital media examination</span>
-                        <h4>Evidence report</h4>
-                      </div>
-                      <span className="mono">Case 0417 · Sample</span>
-                    </div>
-                    <div className="col">
-                      <section>
-                        <h5>Examination summary</h5>
-                        <p>
-                          One video file was received and examined frame by frame. Two regions were marked for
-                          review. Findings describe indicators only and do not establish authenticity.
-                        </p>
-                      </section>
-                      <figure>
-                        <svg viewBox="200 85 100 65" role="img" aria-label="Report figure">
-                          <use href="#scene" />
-                          <rect className="mk mkd" x="228" y="106" width="36" height="26" />
-                        </svg>
-                        <figcaption className="mono">Fig. 1 · Frame 214, jaw edge, region marked for review</figcaption>
-                      </figure>
-                    </div>
-                    <div className="col">
-                      <section>
-                        <h5>Findings and observations</h5>
-                        <ol>
-                          <li>Jaw edge: requires review</li>
-                          <li>Compression: inconsistent indicator</li>
-                          <li>Encoder: consistent with reference</li>
-                        </ol>
-                      </section>
-                      <section>
-                        <h5>File information</h5>
-                        <div className="kv mono">
-                          <span>File</span>
-                          <span>interview_clip_0417.mp4</span>
-                          <span>Received</span>
-                          <span>2026-03-14 09:12 UTC</span>
-                          <span>Format</span>
-                          <span>MP4 · H.264</span>
-                          <span>SHA-256</span>
-                          <span>9f3a…c71e</span>
+                {/* Visual State 3: Keep a record (Timestamped Slide-in Log) */}
+                {activeCap === 2 && (
+                  <div className="cap-view-log">
+                    <img src="/specimen.jpg" alt="Specimen with investigation log" className="cap-photo faded" />
+                    <div className="cap-log-panel">
+                      <div className="clp-header mono">INVESTIGATION TIMELINE</div>
+                      <div className="clp-entry">
+                        <time className="clp-time mono">14 Mar 09:12</time>
+                        <div className="clp-body">
+                          <strong>File received</strong>
+                          <span>interview_specimen_0417.jpg preserved as received</span>
                         </div>
-                      </section>
+                      </div>
+                      <div className="clp-entry">
+                        <time className="clp-time mono">14 Mar 09:14</time>
+                        <div className="clp-body">
+                          <strong>Hash calculated</strong>
+                          <span className="mono">SHA-256 97e0959c…101df135</span>
+                        </div>
+                      </div>
+                      <div className="clp-entry">
+                        <time className="clp-time mono">14 Mar 09:22</time>
+                        <div className="clp-body">
+                          <strong>Region 1 marked</strong>
+                          <span>Background wall frame, anomaly noted</span>
+                        </div>
+                      </div>
+                      <div className="clp-entry highlight">
+                        <time className="clp-time mono">14 Mar 09:31</time>
+                        <div className="clp-body">
+                          <strong>Indicator documented</strong>
+                          <span>Cloned element with compression boundary discontinuity</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
+                )}
+
+                {/* Visual State 4: Share a report (Folded Light Paper Report Card) */}
+                {activeCap === 3 && (
+                  <div className="cap-view-report">
+                    <div className="paper-report-card">
+                      <div className="prc-topbar">
+                        <div>
+                          <span className="mono prc-meta">CASE 0417 · EXAMINATION REPORT</span>
+                          <h4>Media Indicator Summary</h4>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-download-sample"
+                          onClick={() => window.open("/specimen.jpg", "_blank")}
+                        >
+                          Download sample
+                        </button>
+                      </div>
+
+                      <div className="prc-content-grid">
+                        <div className="prc-thumb-wrap">
+                          <img
+                            src="/specimen-crop-suspect.jpg"
+                            alt="Suspect region evidence thumbnail"
+                            className="prc-thumb"
+                          />
+                          <span className="mono prc-cap">Fig 1. Region 1 (cloned frame)</span>
+                        </div>
+
+                        <div className="prc-details">
+                          <p className="prc-p">
+                            One media asset was examined across quantization boundaries and sensor noise profiles.
+                            Findings record structural indicators and do not establish definitive intent.
+                          </p>
+                          <div className="prc-status-row">
+                            <span className="prc-badge-pill">Indicator flagged</span>
+                            <span className="mono">Background wall anomaly</span>
+                          </div>
+                          <div className="prc-kv mono">
+                            <span>Hash:</span> <span>SHA-256 97e0…f135</span>
+                            <span>Preserved:</span> <span>Local browser sandbox</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Live One-Line Caption Beneath Specimen */}
+              <div className="cap-live-caption mono" aria-live="polite">
+                {capCaptions[activeCap]}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* SECTION 4: HOW HAVEN WORKS (Creative Step-Synced Stage in Deep Obsidian Spruce) */}
-        <section id="how" className="how" aria-label="How Haven works">
-          <h2 className="rv">How Haven works</h2>
-          <div className="stage-w">
-            <div className="stage s1" id="stage" role="img" aria-label="Illustration of an investigation record building up stage by stage">
-              <svg className="scn" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
-                <use href="#scene" />
-              </svg>
-              <div className="chip mono l on" data-from="1" data-to="1">
-                interview_clip_0417.mp4 · queued
-              </div>
-              <div className="scanl" />
-              <svg className="ov l" data-from="3" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
-                <path className="mk" d="M180 72h14M180 72v14M324 72h-14M324 72v14M180 152h14M180 152v-14M324 152h-14M324 152v-14" />
-                <rect className="mk mkd" x="228" y="106" width="36" height="26" />
-                <text x="328" y="74">1</text>
-                <text x="268" y="112">2</text>
-              </svg>
-              <div className="note mono l" data-from="4" data-to="4">
-                <span>Note · 09:31</span>
-                Jaw edge differs between frames 212–219.
-              </div>
-              <div className="log mono">
-                <div className="l on" data-from="1">
-                  09:12 · File received
-                </div>
-                <div className="l" data-from="2">
-                  09:14 · Hash recorded
-                </div>
-                <div className="l" data-from="3">
-                  09:22 · Regions marked
-                </div>
-                <div className="l" data-from="4">
-                  09:31 · Observation added
-                </div>
-                <div className="l" data-from="5">
-                  10:05 · Report compiled
+        {/* SECTION 4: HOW HAVEN WORKS (One Case, Told by Scrolling) */}
+        <section id="how" ref={howSectionRef} className="how-scroll-section" aria-label="How Haven works">
+          <div className="how-pin-viewport">
+            {/* The One Continuous Specimen Scene */}
+            <div className="how-scene-container">
+              {/* Layer 1: Base Photograph */}
+              <img
+                src="/specimen.jpg"
+                alt="Documentary specimen in step sequence"
+                className={`how-specimen-base ${howStep >= 2 ? "dimmed" : ""}`}
+              />
+
+              {/* Step 1 Visual: File drops into frame and SHA-256 types in */}
+              <div className={`how-overlay-card step-1-card ${howStep === 1 ? "visible" : ""}`}>
+                <div className="hoc-badge mono">INCOMING ASSET DETECTED</div>
+                <div className="hoc-filename">interview_specimen_0417.jpg</div>
+                <div className="hoc-hash mono">
+                  SHA-256 97e0959c3c257f095498db1b4a60d69655dc2054e7dbf78aae4c1137101df135
                 </div>
               </div>
-              <div className="sheet mono l" data-from="5">
-                <b>Evidence report</b>
-                <span style={{ color: "#6a716c", fontSize: "9px" }}>Case 0417 · Sample</span>
-                <i style={{ width: "100%" }} />
-                <i style={{ width: "90%" }} />
-                <i style={{ width: "96%" }} />
-                <svg viewBox="200 85 100 65" style={{ width: "100%" }}>
-                  <use href="#scene" />
+
+              {/* Step 2 Visual: Scan sweeps across photo, revealing ELA layer */}
+              <div
+                className={`how-ela-wipe ${howStep >= 2 ? "active" : ""}`}
+                style={{
+                  clipPath: howStep === 2 ? "inset(0 0 0 0)" : howStep > 2 ? "inset(0 0 0 0)" : "inset(0 100% 0 0)",
+                }}
+              >
+                <img src="/specimen-ela.jpg" alt="Error Level Analysis scan" className="how-ela-img" />
+                <div className="how-scanline" />
+              </div>
+
+              {/* Step 3 Visual: Outlines draw around suspect region (amber) & reference (mint) */}
+              <div className={`how-outlines-layer ${howStep >= 3 ? "visible" : ""}`} aria-hidden="true">
+                <div className="box-suspect-amber">
+                  <span className="mono box-label">Region 1 · Suspect frame</span>
+                </div>
+                <div className="box-reference-mint">
+                  <span className="mono box-label">Reference 2 · Original</span>
+                </div>
+              </div>
+
+              {/* Step 4 Visual: Pinned note & right-edge growing log */}
+              <div className={`how-note-pinned ${howStep >= 4 ? "visible" : ""}`}>
+                <span className="mono note-time">09:31 UTC · Observation</span>
+                <p>Compression boundary inconsistency detected on background cloned object.</p>
+              </div>
+
+              {/* Step 4 & 5 Progress: Growing timestamped log along the right edge */}
+              <div className={`how-growing-log mono ${howStep >= 4 ? "visible" : ""}`}>
+                <div className="hgl-item">09:12 · File received</div>
+                <div className="hgl-item">09:14 · Hash recorded</div>
+                <div className="hgl-item">09:22 · Regions marked</div>
+                <div className="hgl-item hl">09:31 · Observation documented</div>
+                {howStep >= 5 && <div className="hgl-item pass">10:05 · Report compiled</div>}
+              </div>
+
+              {/* Step 5 Visual: Scene lifts into the finished report card */}
+              <div className={`how-finished-report-lift ${howStep === 5 ? "visible" : ""}`}>
+                <div className="hfr-card">
+                  <div className="hfr-title-row">
+                    <span className="mono">EXAMINATION DOSSIER</span>
+                    <h4>Report Case 0417</h4>
+                  </div>
+                  <p>All indicators compiled with cryptographic hash timestamps. Ready for review.</p>
+                  <button type="button" className="btn-nav-round" onClick={onEnterWorkspace}>
+                    Open in Haven
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Direct Narrative Step Text: Large plain text laid directly on the scene */}
+            <div className="how-step-text-wrap" aria-live="polite">
+              {howStep === 1 && (
+                <div className="how-step-content">
+                  <span className="how-eyebrow">First</span>
+                  <h3>Upload suspicious media</h3>
+                  <p>Bring in the image or video you want to examine. Haven records the file and its details as received.</p>
+                </div>
+              )}
+              {howStep === 2 && (
+                <div className="how-step-content">
+                  <span className="how-eyebrow">Next</span>
+                  <h3>Look closely</h3>
+                  <p>The file is examined frame by frame so there is a clear basis for what comes next.</p>
+                </div>
+              )}
+              {howStep === 3 && (
+                <div className="how-step-content">
+                  <span className="how-eyebrow">Then</span>
+                  <h3>Mark what's off</h3>
+                  <p>Review the regions and metadata that may point to manipulation, and compare them with a reference.</p>
+                </div>
+              )}
+              {howStep === 4 && (
+                <div className="how-step-content">
+                  <span className="how-eyebrow">After that</span>
+                  <h3>Keep the record</h3>
+                  <p>Add notes, screenshots, and sources to a timestamped record that stays attached to the file.</p>
+                </div>
+              )}
+              {howStep === 5 && (
+                <div className="how-step-content">
+                  <span className="how-eyebrow">Finally</span>
+                  <h3>Make a report</h3>
+                  <p>Turn the record into a structured report that others can read, check, and act on.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 5: CLOSING ACTION */}
+        <section id="cta" className="closing-section" aria-label="Get started">
+          <div className="closing-inner rv">
+            <h2>Make sense of what you see.</h2>
+            <p className="closing-sub">Drop in the file you're unsure about.</p>
+
+            {/* Wide fully-rounded pill dropzone */}
+            <div
+              className={`pill-dropzone closing-pill ${isDragging ? "drag-over" : ""}`}
+              role="button"
+              tabIndex={0}
+              aria-label="Upload file to open Haven"
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+            >
+              <div className="pd-icon-circle" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 16V4M7 9l5-5 5 5" />
+                  <path d="M20 18v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2" />
                 </svg>
-                <i style={{ width: "92%" }} />
-                <i style={{ width: "70%" }} />
               </div>
-            </div>
-          </div>
-          <div className="steps">
-            <div className="step" data-n="1">
-              <h3>Drop the file</h3>
-              <p>Haven accepts images and videos. It records the hash immediately.</p>
-            </div>
-            <div className="step" data-n="2">
-              <h3>Examine frame by frame</h3>
-              <p>The file opens one frame at a time. Each region is checked.</p>
-            </div>
-            <div className="step" data-n="3">
-              <h3>Review what it found</h3>
-              <p>Haven shows you the indicators. You decide what matters.</p>
-            </div>
-            <div className="step" data-n="4">
-              <h3>Add what you know</h3>
-              <p>Write in context Haven can't see — when you got it, from whom, what was said.</p>
-            </div>
-            <div className="step" data-n="5">
-              <h3>Export the record</h3>
-              <p>One structured document with everything in one place.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 5: FINAL CTA */}
-        <section id="cta" className="cta" aria-label="Get started">
-          <div className="cta-inner">
-            <div className="cta-left">
-              <h2 className="rv">Start with the file you have.</h2>
-              <p className="rv">Open it here. Haven examines what it can and helps you build a record.</p>
-              <button type="button" className="btn-start rv" onClick={onEnterWorkspace}>
+              <div className="pd-text-wrap">
+                <span className="pd-main">Drop an image or video here</span>
+                <span className="pd-sub mono">JPG, PNG, MP4. Stays in your browser.</span>
+              </div>
+              <button
+                type="button"
+                className="btn-pill-cta"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEnterWorkspace();
+                }}
+              >
                 Open Haven
               </button>
-            </div>
-            <div className="cta-right" aria-hidden="true">
-              <div className="cta-visual">
-                <div className="cv-line">$ haven examine interview_clip_0417.mp4</div>
-                <div className="cv-line hl">→ file received</div>
-                <div className="cv-line">→ hash recorded · SHA-256 9f3a…c71e</div>
-                <div className="cv-line hl">→ examining frames</div>
-                <div className="cv-line">→ indicators noted · 2 regions flagged</div>
-                <div className="cv-line hl">→ record built</div>
-                <div className="cv-line">→ export ready · report_0417.pdf</div>
-              </div>
             </div>
           </div>
         </section>
       </main>
 
       {/* SECTION 6: EDITORIAL FOOTER */}
-      <footer>
-        <div className="fgrid">
-          <div className="fc">
+      <footer role="contentinfo">
+        <div className="footer-grid">
+          <div className="footer-brand-col">
+            <div className="footer-logo">Haven</div>
+            <p className="footer-desc">
+              A private digital safety workspace for examining suspicious media, documenting digital evidence, and
+              generating clear reports.
+            </p>
+          </div>
+
+          <div className="footer-col">
             <h4>Explore</h4>
             <a href="#top">Home</a>
             <a href="#capabilities">Capabilities</a>
             <a href="#how">How it works</a>
           </div>
-          <div className="fc">
+
+          <div className="footer-col">
             <h4>Support Resources</h4>
             <a href="https://takeitdown.ncmec.org" target="_blank" rel="noopener noreferrer">
               Take It Down (NCMEC)
@@ -742,18 +900,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
               Cyber Civil Rights Initiative
             </a>
           </div>
-          <div className="fc">
-            <h4>Repository</h4>
+
+          <div className="footer-col">
+            <h4>Repository & Notice</h4>
             <a href="https://github.com/anooshyniazi01/Haven" target="_blank" rel="noopener noreferrer">
               GitHub Repository
             </a>
-            <a href="#top">Security Specification</a>
-            <a href="#top">Privacy Architecture</a>
+            <a href="#top">Security Architecture</a>
+            <a href="#top">Privacy Guidelines</a>
           </div>
         </div>
-        <div className="bot cap">
-          <span>© 2026 Haven. All rights reserved.</span>
-          <nav>
+
+        <div className="footer-bottom">
+          <span className="footer-copy-note">
+            © 2026 Haven. A prototype: results show indicators only and don't prove authenticity.
+          </span>
+          <nav className="footer-legal-nav" aria-label="Legal Links">
             <a href="#top">Privacy Notice</a>
             <a href="#top">Terms of Use</a>
           </nav>
