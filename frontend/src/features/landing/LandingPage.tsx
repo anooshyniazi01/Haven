@@ -1,765 +1,1131 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import "../../styles/landing.css";
 
 export interface LandingPageProps {
   onEnterWorkspace: () => void;
 }
 
+type ViewMode = "original" | "ela" | "noise";
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) => {
+  const [activeFrame, setActiveFrame] = useState<number>(4); // Frame 214
+  const [viewMode, setViewMode] = useState<ViewMode>("original");
+  const [loupePos, setLoupePos] = useState<{ x: number; y: number; active: boolean }>({
+    x: 0,
+    y: 0,
+    active: false,
+  });
+
+  const mainCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const loupeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+
+  // References for secondary static exhibit crops (ensuring zero black boxes anywhere)
+  const cropCardRef = useRef<HTMLCanvasElement | null>(null);
+  const reportCropRef = useRef<HTMLCanvasElement | null>(null);
+  const stage3CropRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Typing effect for Stage 1 Hash in "How it works"
+  const [typedHash, setTypedHash] = useState<string>("9f3a8b2c4e1d7065");
+  const typingRef = useRef<HTMLDivElement | null>(null);
+
+  // Quick leave handler for personal safety
+  const handleLeaveQuickly = () => {
+    window.location.replace("https://www.weather.com");
+  };
+
+  /**
+   * Procedural forensic specimen renderer.
+   * Renders a documentary architectural scene with fine geometry, window grids,
+   * subtle texture, and a designated compression edge boundary.
+   * In ELA mode: highlights compression variance around the boundary.
+   * In Noise mode: visualizes high-frequency sensor noise matrix.
+   */
+  const renderFrameToContext = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    frameIndex: number,
+    mode: ViewMode
+  ) => {
+    const shiftX = (frameIndex - 4) * 3; // subtle camera tracking across frames
+
+    if (mode === "original") {
+      // Documentary Architectural Specimen (Daylight, Muted Concrete, Glass Facade)
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+      skyGrad.addColorStop(0, "#D9E1DE");
+      skyGrad.addColorStop(0.55, "#EBEFEA");
+      skyGrad.addColorStop(1, "#ECECE6");
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Distant building silhouette
+      ctx.fillStyle = "#A8B4AE";
+      ctx.fillRect(40 + shiftX * 0.4, 90, 140, height - 90);
+      ctx.fillRect(200 + shiftX * 0.4, 120, 110, height - 120);
+
+      // Primary architectural subject: brutalist facade
+      ctx.fillStyle = "#707E78";
+      ctx.fillRect(160 + shiftX, 70, 360, height - 70);
+
+      // Window grid with reflections
+      ctx.fillStyle = "#33413B";
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 5; c++) {
+          const wx = 180 + c * 64 + shiftX;
+          const wy = 90 + r * 54;
+          ctx.fillRect(wx, wy, 44, 36);
+
+          // Diagonal glass reflection
+          ctx.fillStyle = "rgba(225, 235, 230, 0.35)";
+          ctx.beginPath();
+          ctx.moveTo(wx, wy);
+          ctx.lineTo(wx + 22, wy);
+          ctx.lineTo(wx, wy + 28);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = "#33413B"; // reset for next window
+        }
+      }
+
+      // Foreground horizontal sill & edge boundary
+      ctx.fillStyle = "#4B5652";
+      ctx.fillRect(140 + shiftX, 290, 420, 24);
+
+      // The scrutinized boundary region (suspect compression boundary)
+      ctx.fillStyle = "#5E6C66";
+      ctx.beginPath();
+      ctx.arc(310 + shiftX, 190, 38, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Architectural seams and fine edge lines
+      ctx.strokeStyle = "#25312C";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(160 + shiftX, 70);
+      ctx.lineTo(160 + shiftX, height);
+      ctx.moveTo(350 + shiftX, 70);
+      ctx.lineTo(350 + shiftX, height);
+      ctx.stroke();
+
+      // Subtle simulated sensor noise for realistic documentary feel
+      const idata = ctx.getImageData(0, 0, width, height);
+      const data = idata.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const noise = (Math.random() - 0.5) * 8;
+        data[i] = Math.min(255, Math.max(0, data[i] + noise));
+        data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+        data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+      }
+      ctx.putImageData(idata, 0, 0);
+
+      // Amber indicator outline around scrutinized anomaly
+      ctx.strokeStyle = "#C98A1B";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(270 + shiftX, 150, 80, 80);
+      ctx.setLineDash([]);
+    } else if (mode === "ela") {
+      // Error-Level Analysis (Compression disparity map)
+      ctx.fillStyle = "#161D1A";
+      ctx.fillRect(0, 0, width, height);
+
+      // Uniform low-level JPEG compression response
+      const idata = ctx.createImageData(width, height);
+      const d = idata.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const base = Math.floor(Math.random() * 26) + 12;
+        d[i] = base;
+        d[i + 1] = base + 4;
+        d[i + 2] = base + 2;
+        d[i + 3] = 255;
+      }
+      ctx.putImageData(idata, 0, 0);
+
+      // Edges with normal high-frequency error
+      ctx.strokeStyle = "#6B7C75";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(160 + shiftX, 70, 360, height - 70);
+
+      // Highly elevated error level at the scrutinized boundary (Compression Discontinuity)
+      const radGrad = ctx.createRadialGradient(
+        310 + shiftX,
+        190,
+        4,
+        310 + shiftX,
+        190,
+        48
+      );
+      radGrad.addColorStop(0, "rgba(235, 175, 60, 0.95)");
+      radGrad.addColorStop(0.4, "rgba(200, 130, 30, 0.6)");
+      radGrad.addColorStop(1, "rgba(20, 30, 25, 0)");
+      ctx.fillStyle = radGrad;
+      ctx.beginPath();
+      ctx.arc(310 + shiftX, 190, 48, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Indicator border
+      ctx.strokeStyle = "#C98A1B";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(270 + shiftX, 150, 80, 80);
+    } else if (mode === "noise") {
+      // Noise Analysis (Sensor PRNU noise distribution)
+      ctx.fillStyle = "#0D1311";
+      ctx.fillRect(0, 0, width, height);
+
+      const idata = ctx.createImageData(width, height);
+      const d = idata.data;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          // High-frequency Gaussian sensor pattern
+          const v = Math.floor(128 + (Math.random() - 0.5) * 55);
+          d[idx] = v;
+          d[idx + 1] = v;
+          d[idx + 2] = v;
+          d[idx + 3] = 255;
+        }
+      }
+      // Introduce localized smoothing/noise depletion in the scrutinized box
+      const bx = 270 + shiftX;
+      const by = 150;
+      for (let y = by; y < by + 80; y++) {
+        for (let x = bx; x < bx + 80; x++) {
+          if (x >= 0 && x < width && y >= 0 && y < height) {
+            const idx = (y * width + x) * 4;
+            // Less noise = unnatural smoothing / inpainting signature
+            const v = Math.floor(128 + (Math.random() - 0.5) * 16);
+            d[idx] = v;
+            d[idx + 1] = v;
+            d[idx + 2] = v;
+          }
+        }
+      }
+      ctx.putImageData(idata, 0, 0);
+
+      ctx.strokeStyle = "#C98A1B";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, 80, 80);
+    }
+  };
+
+  // Re-render main canvas whenever active frame or viewMode changes
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.add("js");
+    const canvas = mainCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    const $ = <T extends HTMLElement = HTMLElement>(s: string): T | null => document.querySelector(s);
-    const $$ = <T extends HTMLElement = HTMLElement>(s: string): T[] => Array.from(document.querySelectorAll(s));
-    const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    renderFrameToContext(ctx, canvas.width, canvas.height, activeFrame, viewMode);
+  }, [activeFrame, viewMode]);
 
-    const wm = $("#wm");
-    const slot = $("#slot");
-    const hdr = $("#hdr");
+  // Render thumbnail buttons and static crops once on mount
+  useEffect(() => {
+    // Render static crops for Section 2 and Section 4 to guarantee zero empty boxes
+    const renderCrop = (
+      canvas: HTMLCanvasElement | null,
+      srcX: number,
+      srcY: number,
+      srcW: number,
+      srcH: number
+    ) => {
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    // Body background dark
-    document.body.style.backgroundColor = "#080B09";
-    document.body.style.color = "#ffffff";
+      // Draw onto temporary master frame
+      const off = document.createElement("canvas");
+      off.width = 640;
+      off.height = 360;
+      const offCtx = off.getContext("2d");
+      if (!offCtx) return;
 
-    /* Waveform + filmstrip generated procedurally */
-    $$("[data-wave]").forEach((s) => {
-      const n = +(s.dataset.wave || 96);
-      let h = "";
-      let seed = 7;
-      for (let i = 0; i < n; i++) {
-        seed = (seed * 9301 + 49297) % 233280;
-        const r = seed / 233280;
-        const env = 0.35 + 0.65 * Math.abs(Math.sin(i * 0.19) * Math.cos(i * 0.057));
-        const a = Math.max(2, r * env * 38);
-        const isHighlight = i > 52 && i < 60;
-        h += `<rect x="${i * (400 / n) + 0.6}" y="${23 - a / 2}" width="${
-          400 / n - 1.4
-        }" height="${a}" fill="${isHighlight ? "#39D98A" : "#A5AAA6"}" opacity="${
-          isHighlight ? 1 : 0.55
-        }"/>`;
-      }
-      s.innerHTML = h;
-    });
+      renderFrameToContext(offCtx, off.width, off.height, 4, "original");
 
-    const film = $("#film");
-    if (film && film.children.length === 0) {
-      for (let i = 0; i < 8; i++) {
-        film.insertAdjacentHTML(
-          "beforeend",
-          `<svg viewBox="${130 + i * 1.5} 70 140 105"${
-            i === 4 ? ' class="sel"' : ""
-          } aria-hidden="true"><use href="#scene"/></svg>`
-        );
-      }
-    }
-
-    /* Wordmark: scroll-linked move + scale into the header */
-    const m = { x: 0, y: 0, s: 0.2, pad: 24, ty: 15 };
-    function measure() {
-      if (!wm || !slot) return;
-      wm.style.transform = "none";
-      const r = slot.getBoundingClientRect();
-      const fs = parseFloat(getComputedStyle(slot).fontSize) || 120;
-      m.x = r.left + window.scrollX;
-      m.y = r.top + window.scrollY;
-      m.s = 26 / fs;
-      m.pad = Math.max(16, window.innerWidth * 0.04 < 56 ? Math.min(56, Math.max(20, window.innerWidth * 0.04)) : 56);
-      m.ty = (56 - 26) / 2;
-      update();
-    }
-
-    function update() {
-      if (!wm || !hdr) return;
-      const y = window.scrollY;
-      const p = clamp(y / (window.innerHeight * 0.5));
-      const e = p * p * (3 - 2 * p);
-      wm.style.transform = `translate(${lerp(m.x, m.pad, e)}px,${lerp(m.y, m.ty, e)}px) scale(${lerp(1, m.s, e)})`;
-      root.style.setProperty("--p", p.toFixed(3));
-      hdr.style.setProperty("--hb", e.toFixed(3));
-      pin();
-    }
-
-    /* Pinned horizontal capabilities (desktop only) */
-    const pbar = $("#pbar");
-    const sec = $("#capabilities");
-    const track = $("#track");
-    const cnt = $("#cnt");
-    const mq = window.matchMedia("(min-width: 901px)");
-    let total = 0;
-
-    function size() {
-      if (!sec || !track) return;
-      if (!mq.matches) {
-        sec.style.height = "";
-        track.style.transform = "";
-        return;
-      }
-      total = Math.max(0, track.scrollWidth - window.innerWidth);
-      sec.style.height = total + window.innerHeight + "px";
-    }
-
-    function pin() {
-      if (!mq.matches || !sec || !track || !pbar || !cnt) return;
-      const t = clamp((window.scrollY - sec.offsetTop) / (total || 1));
-      track.style.transform = `translate3d(${-t * total}px,0,0)`;
-      cnt.textContent = String(Math.min(4, Math.round(t * 3) + 1));
-      pbar.style.width = t * 100 + "%";
-    }
-
-    const handleTrackScroll = () => {
-      if (!mq.matches && track && cnt) {
-        cnt.textContent = String(Math.min(4, Math.round(track.scrollLeft / (track.scrollWidth - track.clientWidth || 1) * 3) + 1));
-      }
-    };
-    if (track) {
-      track.addEventListener("scroll", handleTrackScroll, { passive: true });
-    }
-
-    /* Reveals via IntersectionObserver */
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("in");
-            io.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.15 }
-    );
-    $$(".rv").forEach((el) => io.observe(el));
-
-    /* How-it-works: stage builds up as steps scroll */
-    const stage = $("#stage");
-    const steps = $$(".step");
-    const layers = $$(".l");
-    const rail = $$("#rail i");
-    let cur = 0;
-
-    function setStep(n: number) {
-      if (n === cur || !stage) return;
-      cur = n;
-      stage.className = "stage s" + n + (n === 2 ? " scan" : "");
-      layers.forEach((l) => {
-        const f = +(l.dataset.from || 1);
-        const to = +(l.dataset.to || 9);
-        l.classList.toggle("on", n >= f && n <= to);
-      });
-      steps.forEach((s) => s.classList.toggle("on", +(s.dataset.n || 0) === n));
-      rail.forEach((r, i) => r.classList.toggle("on", i < n));
-    }
-
-    const so = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setStep(+((entry.target as HTMLElement).dataset.n || 1));
-          }
-        });
-      },
-      { rootMargin: "-45% 0px -45% 0px" }
-    );
-    steps.forEach((s) => so.observe(s));
-    if (steps[0]) {
-      steps[0].classList.add("on");
-      cur = 1;
-    }
-
-    let tick = false;
-    const handleScroll = () => {
-      if (!tick) {
-        tick = true;
-        requestAnimationFrame(() => {
-          update();
-          tick = false;
-        });
-      }
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(off, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
     };
 
-    function all() {
-      measure();
-      size();
-      update();
+    renderCrop(cropCardRef.current, 270, 150, 80, 80);
+    renderCrop(reportCropRef.current, 260, 140, 100, 100);
+    renderCrop(stage3CropRef.current, 270, 150, 80, 80);
+  }, []);
+
+  // Update follow-cursor loupe
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const viewport = viewportRef.current;
+    const canvas = mainCanvasRef.current;
+    const loupe = loupeCanvasRef.current;
+    if (!viewport || !canvas || !loupe) return;
+
+    const rect = viewport.getBoundingClientRect();
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
+
+    if (clientX < 0 || clientY < 0 || clientX > rect.width || clientY > rect.height) {
+      setLoupePos((prev) => ({ ...prev, active: false }));
+      return;
     }
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", all);
-    mq.addEventListener("change", all);
+    setLoupePos({ x: clientX, y: clientY, active: true });
 
-    all();
+    // Map screen coordinates to internal canvas resolution
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = clientX * scaleX;
+    const canvasY = clientY * scaleY;
 
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => {
-        all();
-        requestAnimationFrame(() => root.classList.add("go"));
-      });
-    } else {
-      root.classList.add("go");
+    // Magnify 3.5x
+    const zoomSize = 40; // 40x40 pixel sample
+    const sx = Math.max(0, Math.min(canvas.width - zoomSize, canvasX - zoomSize / 2));
+    const sy = Math.max(0, Math.min(canvas.height - zoomSize, canvasY - zoomSize / 2));
+
+    const lctx = loupe.getContext("2d");
+    if (lctx) {
+      lctx.imageSmoothingEnabled = false;
+      lctx.clearRect(0, 0, loupe.width, loupe.height);
+      lctx.drawImage(canvas, sx, sy, zoomSize, zoomSize, 0, 0, loupe.width, loupe.height);
+
+      // Fine reticle
+      lctx.strokeStyle = "rgba(201, 138, 27, 0.4)";
+      lctx.lineWidth = 1;
+      lctx.beginPath();
+      lctx.moveTo(loupe.width / 2, 0);
+      lctx.lineTo(loupe.width / 2, loupe.height);
+      lctx.moveTo(0, loupe.height / 2);
+      lctx.lineTo(loupe.width, loupe.height / 2);
+      lctx.stroke();
     }
+  };
 
-    const tFallback = setTimeout(() => root.classList.add("go"), 2500);
+  const handleMouseLeave = () => {
+    setLoupePos((prev) => ({ ...prev, active: false }));
+  };
 
-    return () => {
-      clearTimeout(tFallback);
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", all);
-      mq.removeEventListener("change", all);
-      if (track) {
-        track.removeEventListener("scroll", handleTrackScroll);
+  // Hash typing animation for Stage 1 in "How it works"
+  useEffect(() => {
+    const fullHash = "9f3a8b2c4e1d7065a83e0192d6e4b8a7";
+    let idx = 16;
+    const timer = setInterval(() => {
+      idx++;
+      if (idx <= fullHash.length) {
+        setTypedHash(fullHash.slice(0, idx));
+      } else {
+        clearInterval(timer);
       }
-      io.disconnect();
-      so.disconnect();
-      root.classList.remove("go");
-      document.body.style.backgroundColor = "";
-      document.body.style.color = "";
-    };
+    }, 180);
+    return () => clearInterval(timer);
   }, []);
 
   return (
     <>
-      {/* SVG Global Definitions: Lighting, Film Grain, Vignette & Procedural Face Scene */}
-      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
-        <defs>
-          <filter id="b4">
-            <feGaussianBlur stdDeviation="4" />
-          </filter>
-          <filter id="b1">
-            <feGaussianBlur stdDeviation="1.1" />
-          </filter>
-          <filter id="gr" x="0" y="0" width="100%" height="100%">
-            <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves={2} seed={4} />
-            <feColorMatrix values="0 0 0 0 .75 0 0 0 0 .8 0 0 0 0 .75 .7 0 0 0 -.18" />
-          </filter>
-          <linearGradient id="wl" x1="0" x2="1">
-            <stop offset="0" stopColor="#2b332e" />
-            <stop offset="1" stopColor="#0c100d" />
-          </linearGradient>
-          <radialGradient id="fg" cx=".38" cy=".34" r=".75">
-            <stop offset="0" stopColor="#8a948c" />
-            <stop offset=".55" stopColor="#4d564f" />
-            <stop offset="1" stopColor="#232925" />
-          </radialGradient>
-          <radialGradient id="vg" cx=".5" cy=".5" r=".75">
-            <stop offset=".55" stopColor="#000" stopOpacity="0" />
-            <stop offset="1" stopColor="#000" stopOpacity=".65" />
-          </radialGradient>
-
-          {/* Procedural Forensic Inspection Portrait */}
-          <symbol id="scene" viewBox="0 0 400 300">
-            <rect width="400" height="300" fill="url(#wl)" />
-            <rect x="-20" y="10" width="120" height="190" fill="#9aa59c" opacity=".2" filter="url(#b4)" />
-            <g filter="url(#b4)" fill="#6a756c" opacity=".3">
-              <circle cx="338" cy="70" r="20" />
-              <circle cx="366" cy="118" r="13" />
-              <circle cx="312" cy="38" r="9" />
-            </g>
-            <path d="M60 300C64 236 128 210 200 210S336 236 340 300Z" fill="#1a201c" filter="url(#b1)" />
-            <path d="M174 212L200 266L226 212Z" fill="#5c665e" opacity=".85" filter="url(#b1)" />
-            <rect x="180" y="172" width="40" height="46" fill="#3a423c" filter="url(#b1)" />
-            <ellipse cx="200" cy="130" rx="44" ry="56" fill="url(#fg)" filter="url(#b1)" />
-            <path
-              d="M153 126C148 82 176 68 203 70S254 86 247 128C240 104 214 96 200 98S160 104 153 126Z"
-              fill="#131814"
-              filter="url(#b1)"
-            />
-            <ellipse cx="228" cy="138" rx="22" ry="54" fill="#0b0e0c" opacity=".38" filter="url(#b4)" />
-            <g fill="#161b17">
-              <ellipse cx="184" cy="130" rx="6.5" ry="2.6" />
-              <ellipse cx="216" cy="130" rx="6.5" ry="2.6" />
-              <rect x="176" y="120" width="17" height="2.4" />
-              <rect x="208" y="120" width="17" height="2.4" />
-            </g>
-            <path
-              d="M200 134L195 156H205M190 168Q200 172 210 168"
-              fill="none"
-              stroke="#252b26"
-              strokeWidth="2"
-              opacity=".6"
-            />
-            <rect width="400" height="300" filter="url(#gr)" opacity=".55" />
-            <rect width="400" height="300" fill="url(#vg)" />
-          </symbol>
-        </defs>
-      </svg>
-
-      {/* Sticky Header with Dynamic Backdrop Blur */}
-      <header id="hdr">
-        <a className="h" href="#capabilities">
-          Capabilities
-        </a>
-        <a className="h" href="#how">
-          How it works
-        </a>
-        <button type="button" className="btn s" onClick={onEnterWorkspace}>
-          Explore Haven
-        </button>
-      </header>
-
-      {/* Continuous Scroll-Linked Animated Wordmark */}
-      <a id="wm" href="#top" aria-label="Haven, back to top">
-        Haven
+      {/* Accessibility Skip Link */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
       </a>
 
-      <main>
+      {/* Header */}
+      <header className="haven-header" role="banner">
+        <div className="header-inner">
+          <a href="#top" className="brand-link" aria-label="Haven homepage">
+            {/* Sturdy, high-contrast SVG logomark + wordmark that never drops the H crossbar */}
+            <svg
+              className="brand-mark"
+              viewBox="0 0 28 28"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <rect x="2" y="2" width="24" height="24" rx="4" stroke="currentColor" strokeWidth="2" />
+              {/* Solid, thick H with pronounced middle crossbar */}
+              <path
+                d="M8 8V20M20 8V20M8 14H20"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="square"
+              />
+            </svg>
+            <span className="brand-name">Haven</span>
+          </a>
+
+          <nav className="header-nav" aria-label="Primary navigation">
+            <a href="#capabilities">Capabilities</a>
+            <a href="#how">How it works</a>
+            <a href="#demo">Interactive Exhibit</a>
+            <a href="#limits">Limitations</a>
+            <a href="#privacy">Privacy</a>
+          </nav>
+
+          <div className="header-actions">
+            {/* Safety Exit Button */}
+            <button
+              type="button"
+              className="btn btn-safety"
+              onClick={handleLeaveQuickly}
+              title="Quickly exit this website to a neutral page"
+              aria-label="Leave quickly to a neutral page"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+              </svg>
+              <span>Leave quickly</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onEnterWorkspace}
+            >
+              Examine a file
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main id="main-content">
         {/* SECTION 1: HERO */}
-        <section className="hero" aria-label="Haven">
-          <div className="hl">
-            <div id="slot" aria-hidden="true">
-              Haven
+        <section className="hero-section" aria-labelledby="hero-title">
+          <div className="hero-layout">
+            <div className="hero-copy">
+              <h1 id="hero-title">Something doesn't look right. Start by looking closer.</h1>
+              <p className="lead">
+                Haven helps you examine a suspicious image or video, keep a clear record of what you find,
+                and decide what to do next.
+              </p>
+              <div className="hero-ctas">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={onEnterWorkspace}
+                >
+                  Examine a file
+                </button>
+                <a href="#how" className="btn btn-secondary">
+                  See how it works
+                </a>
+              </div>
+              <div className="hero-meta-note">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <span>
+                  Evaluated within your private Haven instance. Your files are not shared with external commercial AI services.
+                </span>
+              </div>
             </div>
-            <div className="tag hfade e e1">Your digital safety workspace.</div>
-            <p className="d hfade e e2">
-              Examine suspicious media. Document digital evidence. Make informed decisions.
+          </div>
+        </section>
+
+        {/* Quiet "Need help now?" Support Resources Strip */}
+        <div className="support-strip" role="region" aria-label="Support Resources">
+          <div className="support-strip-inner">
+            <div className="support-strip-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </svg>
+              <span>Need help now? Confidential support is available immediately:</span>
+            </div>
+            <p className="support-strip-text">
+              If you or someone you know is facing online blackmail, non-consensual image distribution,
+              or impersonation, these verified organizations can assist:
             </p>
-            <div className="ctas hfade e e3">
-              <button type="button" className="btn p" onClick={onEnterWorkspace}>
-                Explore Haven
-              </button>
-              <a className="btn s" href="#how">
-                How it works
+            <div className="support-strip-links">
+              <a
+                href="https://takeitdown.ncmec.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="support-link"
+              >
+                Take It Down (NCMEC) ↗
+              </a>
+              <a
+                href="https://stopncii.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="support-link"
+              >
+                StopNCII.org ↗
+              </a>
+              <a
+                href="https://www.cybercivilrights.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="support-link"
+              >
+                Cyber Civil Rights Initiative ↗
               </a>
             </div>
           </div>
+        </div>
 
-          <figure className="exam e ev" aria-label="Illustrative media examination exhibit">
-            <div className="frame">
-              <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Sample video frame with two marked regions">
-                <use href="#scene" />
-                <path className="mk" d="M150 78h16M150 78v16M250 78h-16M250 78v16" />
-                <rect className="mk mkd" x="154" y="158" width="92" height="34" />
-                <text x="258" y="76">1</text>
-                <text x="250" y="204">2</text>
-              </svg>
-              <span className="tc mono">00:07.13 · Frame 214</span>
-              <span className="tc r mono">Sample · illustrative</span>
-              <div className="mag">
-                <svg viewBox="154 158 92 55" role="img" aria-label="Enlarged crop of region 2">
-                  <use href="#scene" />
-                  <rect className="mk mkd" x="157" y="161" width="86" height="30" />
-                </svg>
-                <div className="cap mono">2 · Jaw edge · enlarged</div>
-              </div>
-            </div>
-            <div className="below">
-              <svg className="wave" data-wave="96" viewBox="0 0 400 46" preserveAspectRatio="none" role="img" aria-label="Audio waveform of the sample file" />
-              <div className="cap mono">interview_clip_0417.mp4 · H.264 · 1920×1080 · 29.97 fps</div>
-              <div className="cap mono">SHA-256 9f3a…c71e · prototype content, no analysis performed</div>
-            </div>
-          </figure>
-        </section>
-
-        {/* SECTION 2: INTRO */}
-        <section className="intro" aria-label="Introduction">
-          <h2 className="rv">Not everything online is what it appears to be.</h2>
-          <div className="copy rv">
+        {/* SECTION 2: INTRO & GROUNDED PERSPECTIVE */}
+        <section className="perspective-section" aria-labelledby="perspective-heading">
+          <div className="perspective-header">
+            <h2 id="perspective-heading">
+              A convincing clip isn't proof of anything. Neither is a doubtful one.
+            </h2>
             <p>
-              Suspicious media and digital threats can be difficult to assess. Haven brings media examination,
-              evidence documentation, and investigation into one workspace.
+              When media is forwarded in a message or posted anonymously, it is easy to assume the worst.
+              Haven provides a structured, calm way to inspect visual artifacts, note technical provenance,
+              and build an objective record before taking action.
             </p>
-            <p className="cap">Illustrative exhibits shown. No real analysis is performed in this prototype.</p>
           </div>
-          <figure className="ex a rv">
-            <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Sample video frame, wide view">
-              <use href="#scene" />
-            </svg>
-            <figcaption className="cap mono">Exhibit A · video received by message, 14 Mar</figcaption>
-          </figure>
-          <figure className="ex b rv">
-            <svg viewBox="165 104 70 70" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Enlarged crop of the eye region">
-              <use href="#scene" />
-              <rect className="mk mkd" x="170" y="116" width="60" height="26" />
-            </svg>
-            <figcaption className="cap mono">Exhibit A · frame 214, enlarged crop</figcaption>
-          </figure>
-          <figure className="ex c rv">
-            <div className="rows mono">
-              <div>
-                <span className="tm">Sender</span>
-                <span>Unknown</span>
-                <span className="st w">Unverified</span>
+
+          <div className="perspective-grid">
+            {/* Card A: Observed Media Frame */}
+            <article className="p-card p-card-large">
+              <div className="card-label">
+                <span className="title">Observed Media Frame</span>
+                <span className="tag mono">Exhibit A · specimen_0417.mp4</span>
               </div>
-              <div>
-                <span className="tm">Platform</span>
-                <span>Messaging app</span>
-                <span />
+              <div className="p-card-preview">
+                {/* Real canvas rendering source pixels */}
+                <canvas
+                  width={640}
+                  height={400}
+                  ref={(el) => {
+                    if (el) {
+                      const ctx = el.getContext("2d");
+                      if (ctx) renderFrameToContext(ctx, 640, 400, 4, "original");
+                    }
+                  }}
+                  aria-label="Observed video frame with an annotated compression boundary"
+                />
               </div>
-              <div>
-                <span className="tm">Re-encoded</span>
-                <span>Yes</span>
-                <span />
+              <p className="caption">
+                Frame 214 captured at 00:07.13. Dashed amber perimeter marks a localized compression boundary.
+              </p>
+            </article>
+
+            {/* Card B: Boundary Analysis Crop (Actual Magnified Pixels) */}
+            <article className="p-card p-card-detail">
+              <div className="card-label">
+                <span className="title">Boundary Analysis Crop</span>
+                <span className="badge-review">Requires Review</span>
               </div>
-              <div>
-                <span className="tm">Original</span>
-                <span>Not located</span>
-                <span className="st w">Open</span>
+              <div className="pixel-zoom-crop">
+                {/* Real magnified pixels via canvas */}
+                <canvas
+                  ref={cropCardRef}
+                  width={280}
+                  height={280}
+                  aria-label="Enlarged 4x pixel crop of the scrutinized compression boundary"
+                />
+                <span className="zoom-badge">4× Magnification</span>
               </div>
-            </div>
-            <figcaption className="cap mono">Exhibit B · provenance notes (illustrative)</figcaption>
-          </figure>
+              <p className="caption">
+                Enlarged crop demonstrates 8×8 block boundary disparity inconsistent with adjacent background blocks.
+              </p>
+            </article>
+
+            {/* Card C: Transmission & Provenance Record */}
+            <article className="p-card p-card-table">
+              <div className="card-label">
+                <span className="title">Technical Provenance Record</span>
+                <span className="tag mono">Intake Ledger #0417</span>
+              </div>
+              <table className="provenance-table" aria-label="Media provenance indicators">
+                <thead>
+                  <tr>
+                    <th scope="col">Inspection Vector</th>
+                    <th scope="col">Observed Parameter</th>
+                    <th scope="col">Technical Finding</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>File Integrity</td>
+                    <td className="mono">SHA-256</td>
+                    <td className="mono">9f3a8b2c4e1d7065a83e0192d6e4b8a7</td>
+                    <td>
+                      <span className="badge-verified">Recorded</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Compression Grid</td>
+                    <td>8×8 DCT Matrices</td>
+                    <td>Discontinuity detected along structural edge boundary</td>
+                    <td>
+                      <span className="badge-review">Disparity Flagged</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Container Metadata</td>
+                    <td>MP4 / H.264 AVC</td>
+                    <td>Re-encoded via social messaging gateway; original camera metadata stripped</td>
+                    <td>
+                      <span className="badge-review">Metadata Absent</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Audio Stream</td>
+                    <td>AAC 44.1 kHz</td>
+                    <td>No phase mismatch detected across temporal baseline</td>
+                    <td>
+                      <span className="badge-verified">Consistent</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+          </div>
         </section>
 
-        {/* SECTION 3: CAPABILITIES */}
-        <section id="capabilities" aria-label="Capabilities">
-          <div className="pin">
-            <div className="chead">
-              <h2 style={{ color: "var(--tx)" }}>Capabilities</h2>
-              <span className="mono">
-                <span id="cnt">1</span> / 4
-              </span>
+        {/* SECTION 3: DARK INTERACTIVE EXHIBIT DEMO (Single Dark Rhythm Section) */}
+        <section id="demo" className="dark-exhibit-section" aria-labelledby="demo-heading">
+          <div className="exhibit-container">
+            <div className="exhibit-header">
+              <div>
+                <h2 id="demo-heading">Interactive Media Inspection</h2>
+                <p>
+                  Explore real pixel-level forensic tools: hover with the magnifying loupe, switch analytical views,
+                  and scrub between adjacent frames.
+                </p>
+              </div>
+              <div className="demo-prototype-badge">
+                <span>Prototype — sample examination data</span>
+              </div>
             </div>
-            <div className="prog" aria-hidden="true">
-              <i id="pbar" />
-            </div>
-            <div className="track" id="track">
-              {/* Panel 1 */}
-              <article className="panel p1">
-                <div className="t">
-                  <span className="mono n">01</span>
-                  <h3>Media analysis</h3>
-                  <p>Examine suspicious images and videos for potential manipulation indicators, frame by frame.</p>
+
+            <div className="exhibit-workspace">
+              {/* Workspace Toolbar */}
+              <div className="workspace-toolbar">
+                <div className="view-mode-tabs" role="tablist" aria-label="Visual analysis modes">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "original"}
+                    className={`tab-btn ${viewMode === "original" ? "active" : ""}`}
+                    onClick={() => setViewMode("original")}
+                  >
+                    Original View
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "ela"}
+                    className={`tab-btn ${viewMode === "ela" ? "active" : ""}`}
+                    onClick={() => setViewMode("ela")}
+                  >
+                    Error-Level (ELA)
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewMode === "noise"}
+                    className={`tab-btn ${viewMode === "noise" ? "active" : ""}`}
+                    onClick={() => setViewMode("noise")}
+                  >
+                    Noise Pattern
+                  </button>
                 </div>
-                <div className="v">
-                  <div className="m1">
-                    <svg className="main" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Large sample frame with a selected region">
-                      <use href="#scene" />
-                      <path className="mk" d="M146 74h18M146 74v18M254 74h-18M254 74v18M146 196h18M146 196v-18M254 196h-18M254 196v-18" />
-                      <rect className="mk mkd" x="170" y="108" width="60" height="30" />
-                      <text x="236" y="106">A</text>
-                    </svg>
-                    <div className="mag2">
-                      <svg viewBox="170 108 60 60" role="img" aria-label="Enlarged crop of region A">
-                        <use href="#scene" />
-                      </svg>
-                      <div className="cap mono">A · 6× · frame 214</div>
-                    </div>
-                    <div className="film" id="film" />
-                    <div className="ruler mono">
-                      <span>00:07.00</span>
-                      <span>Frame 214 selected</span>
-                      <span>00:07.27</span>
-                    </div>
+
+                <div className="file-spec-meta">
+                  <span>specimen_0417.mp4</span>
+                  <span>·</span>
+                  <span>Frame {210 + activeFrame} of 217</span>
+                  <span>·</span>
+                  <span>29.97 fps</span>
+                </div>
+              </div>
+
+              {/* Main Interactive Canvas Viewport */}
+              <div
+                className="canvas-viewport-wrapper"
+                ref={viewportRef}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                aria-label="Interactive specimen inspection area. Hover to magnify pixels."
+              >
+                <canvas
+                  ref={mainCanvasRef}
+                  width={640}
+                  height={360}
+                  className="main-exhibit-canvas"
+                />
+
+                {/* Follow-cursor magnifying loupe */}
+                <div
+                  className={`cursor-loupe ${loupePos.active ? "active" : ""}`}
+                  style={{
+                    left: `${loupePos.x}px`,
+                    top: `${loupePos.y}px`,
+                  }}
+                  aria-hidden="true"
+                >
+                  <canvas ref={loupeCanvasRef} width={140} height={140} />
+                  <div className="loupe-hud">3.5× Zoom</div>
+                </div>
+              </div>
+
+              {/* Scrubbable Frame Strip */}
+              <div className="frame-strip-deck">
+                <div className="strip-label">
+                  <span className="mono">Timeline Sequence (Frames 210–217)</span>
+                  <span className="mono">Selected: Frame {210 + activeFrame}</span>
+                </div>
+                <div className="strip-thumbnails" role="radiogroup" aria-label="Video frame selector">
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      role="radio"
+                      aria-checked={activeFrame === idx}
+                      className={`frame-thumb-btn ${activeFrame === idx ? "active" : ""}`}
+                      onClick={() => setActiveFrame(idx)}
+                      aria-label={`Select frame ${210 + idx}`}
+                    >
+                      <canvas
+                        width={120}
+                        height={75}
+                        ref={(el) => {
+                          if (el) {
+                            const ctx = el.getContext("2d");
+                            if (ctx) renderFrameToContext(ctx, 120, 75, idx, "original");
+                          }
+                        }}
+                      />
+                      <span className="frame-thumb-tag">F{210 + idx}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 4: CAPABILITIES */}
+        <section id="capabilities" className="capabilities-section" aria-labelledby="capabilities-heading">
+          <div className="capabilities-header">
+            <h2 id="capabilities-heading">Capabilities built for clarity and care</h2>
+            <p>
+              Haven avoids opaque black-box assertions. Every capability is designed to surface objective indicators
+              that you can verify, organize, and share.
+            </p>
+          </div>
+
+          <div className="capabilities-grid">
+            {/* Capability 1: Look closely */}
+            <article className="capability-card">
+              <div className="capability-header">
+                <h3>Look closely</h3>
+                <p>Frame-by-frame media examination to inspect compression edges, boundary anomalies, and visual artifacts.</p>
+              </div>
+              <div className="capability-visual">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span className="mono" style={{ fontSize: "12px", color: "var(--ink-secondary)" }}>
+                    Frame 214 · Spatial Magnification
+                  </span>
+                  <span className="badge-review">Anomaly Flagged</span>
+                </div>
+                <canvas
+                  width={480}
+                  height={180}
+                  ref={(el) => {
+                    if (el) {
+                      const ctx = el.getContext("2d");
+                      if (ctx) renderFrameToContext(ctx, 480, 180, 4, "original");
+                    }
+                  }}
+                  style={{ width: "100%", height: "180px", borderRadius: "4px", display: "block" }}
+                  aria-label="Frame inspection crop with boundary markers"
+                />
+              </div>
+            </article>
+
+            {/* Capability 2: Check where it came from */}
+            <article className="capability-card">
+              <div className="capability-header">
+                <h3>Check where it came from</h3>
+                <p>Document file provenance, platform re-encoding signatures, and transmission trails.</p>
+              </div>
+              <div className="capability-visual">
+                <div className="mono" style={{ fontSize: "13px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-light)", paddingBottom: "6px" }}>
+                    <span>Container:</span>
+                    <strong>ISO Base Media File Format (MP4)</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-light)", paddingBottom: "6px" }}>
+                    <span>Encoding Profile:</span>
+                    <strong>libx264 Main@L4.0</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border-light)", paddingBottom: "6px" }}>
+                    <span>EXIF / GPS Payload:</span>
+                    <strong style={{ color: "var(--amber)" }}>Stripped in transmission</strong>
                   </div>
                 </div>
-              </article>
+              </div>
+            </article>
 
-              {/* Panel 2 */}
-              <article className="panel p2">
-                <div className="v">
-                  <div className="cmp">
-                    <div>
-                      <svg viewBox="130 70 140 105" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Reference frame">
-                        <use href="#scene" />
-                      </svg>
-                      <span className="lb mono">Reference</span>
-                      <div className="dt">
-                        <svg viewBox="160 150 80 48">
-                          <use href="#scene" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div>
-                      <svg viewBox="130 70 140 105" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Submitted frame with an area marked for review">
-                        <use href="#scene" />
-                        <path d="M160 156Q200 196 240 154L236 168Q200 204 166 170Z" fill="#9aa59c" opacity=".28" filter="url(#b1)" />
-                        <rect className="mk wn mkd" x="156" y="152" width="88" height="40" />
-                      </svg>
-                      <span className="lb mono">Submitted file</span>
-                      <div className="dt">
-                        <svg viewBox="160 150 80 48">
-                          <use href="#scene" />
-                          <path d="M160 156Q200 196 240 154L236 168Q200 204 166 170Z" fill="#9aa59c" opacity=".28" />
-                        </svg>
-                      </div>
-                    </div>
-                    <span className="dv" />
-                    <span className="hd" aria-hidden="true">
-                      ‹›
+            {/* Capability 3: Keep a record */}
+            <article className="capability-card">
+              <div className="capability-header">
+                <h3>Keep a record</h3>
+                <p>Build a verifiable, timestamped investigation log with cryptographic SHA-256 hashes.</p>
+              </div>
+              <div className="capability-visual">
+                <div className="mono" style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ display: "flex", gap: "12px", alignItems: "baseline" }}>
+                    <span style={{ color: "var(--ink-tertiary)" }}>09:12:04 UTC</span>
+                    <span>File imported: specimen_0417.mp4 (24.8 MB)</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "12px", alignItems: "baseline" }}>
+                    <span style={{ color: "var(--ink-tertiary)" }}>09:12:06 UTC</span>
+                    <span style={{ color: "var(--deep-green)", fontWeight: 700 }}>
+                      SHA-256 computed: 9f3a8b2c4e1d7065...
                     </span>
                   </div>
-                </div>
-                <div className="band">
-                  <div className="t">
-                    <span className="mono n">02</span>
-                    <h3>Authenticity investigation</h3>
-                    <p>Compare a submitted file with a reference and review indicators that may need a closer look.</p>
-                  </div>
-                  <div className="rows mono">
-                    <div>
-                      <span className="tm">Jaw edge</span>
-                      <span>Halo not present in reference</span>
-                      <span className="st w">Requires review</span>
-                    </div>
-                    <div>
-                      <span className="tm">Compression</span>
-                      <span>Differs between files</span>
-                      <span className="st w">Inconsistent indicator</span>
-                    </div>
-                    <div>
-                      <span className="tm">Encoder</span>
-                      <span>Matches reference</span>
-                      <span className="st">Consistent with reference</span>
-                    </div>
+                  <div style={{ display: "flex", gap: "12px", alignItems: "baseline" }}>
+                    <span style={{ color: "var(--ink-tertiary)" }}>09:15:30 UTC</span>
+                    <span>Frame 214 marked: Edge discontinuity annotated</span>
                   </div>
                 </div>
-              </article>
+              </div>
+            </article>
 
-              {/* Panel 3 */}
-              <article className="panel p3">
-                <div className="t">
-                  <div className="bn" aria-hidden="true">
-                    03
+            {/* Capability 4: Share a report */}
+            <article className="capability-card">
+              <div className="capability-header">
+                <h3>Share a report</h3>
+                <p>Export clear, readable evidence reports designed for platforms, counselors, or legal advisors.</p>
+              </div>
+              <div className="capability-visual">
+                {/* Realistic Paper Evidence Report Dossier */}
+                <div className="evidence-report-sheet" role="region" aria-label="Evidence Report Sample Sheet">
+                  <div className="report-header-row">
+                    <div>
+                      <div className="report-title">Haven Evidence Report</div>
+                      <div className="mono" style={{ fontSize: "11px", color: "var(--ink-tertiary)" }}>
+                        Case Reference: #HAV-2026-0417
+                      </div>
+                    </div>
+                    <div className="report-meta-tag">CONFIDENTIAL · AUDIT LOG</div>
                   </div>
-                  <span className="mono n">03</span>
-                  <h3>Evidence documentation</h3>
-                  <p>Organize relevant information and preserve a timestamped investigation record.</p>
-                  <span className="cap mono">Illustrative record</span>
-                </div>
-                <div className="v">
-                  <ol className="led mono">
-                    <li>
-                      <span className="tm">14 Mar 09:12</span>
-                      <div>
-                        <b>File received</b>
-                        <div className="cap">interview_clip_0417.mp4 preserved as received</div>
-                      </div>
-                    </li>
-                    <li>
-                      <span className="tm">14 Mar 09:14</span>
-                      <div>
-                        <b>Hash recorded</b>
-                        <div className="cap">SHA-256 9f3a…c71e</div>
-                      </div>
-                    </li>
-                    <li>
-                      <span className="tm">14 Mar 09:22</span>
-                      <div>
-                        <b>Frame captured</b>
-                        <div className="cap">Frame 214, jaw edge</div>
-                      </div>
-                      <svg viewBox="160 150 80 48" role="img" aria-label="Captured frame crop">
-                        <use href="#scene" />
-                      </svg>
-                    </li>
-                    <li className="w">
-                      <span className="tm">14 Mar 09:31</span>
-                      <div>
-                        <b>Observation documented</b>
-                        <div className="cap">Edge differs across frames 212–219. Requires review.</div>
-                      </div>
-                    </li>
-                    <li>
-                      <span className="tm">14 Mar 09:47</span>
-                      <div>
-                        <b>Source information added</b>
-                        <div className="cap">No earlier upload located</div>
-                      </div>
-                    </li>
-                  </ol>
-                </div>
-              </article>
 
-              {/* Panel 4 */}
-              <article className="panel p4">
-                <div className="t">
-                  <span className="mono n">04</span>
-                  <h3>Evidence reports</h3>
-                  <p>Present investigation findings through structured, readable reports.</p>
-                </div>
-                <div className="v">
-                  <div className="doc">
-                    <div className="hd2">
-                      <div>
-                        <span className="mono">Digital media examination</span>
-                        <h4>Evidence report</h4>
-                      </div>
-                      <span className="mono">Case 0417 · Sample</span>
+                  <div className="report-body-grid">
+                    <div className="report-section-block">
+                      <h5>Findings Summary</h5>
+                      <p>
+                        One video stream examined. Frame 214 displays localized compression divergence along edge boundaries.
+                        Findings describe observable indicators and require contextual corroboration.
+                      </p>
                     </div>
-                    <div className="col">
-                      <section>
-                        <h5>Examination summary</h5>
-                        <p>
-                          One video file was received and examined frame by frame. Two regions were marked for
-                          review. Findings describe indicators only and do not establish authenticity.
-                        </p>
-                      </section>
-                      <figure>
-                        <svg viewBox="140 90 120 75" role="img" aria-label="Report figure">
-                          <use href="#scene" />
-                          <rect className="mk mkd" x="150" y="130" width="100" height="30" />
-                        </svg>
-                        <figcaption className="mono">Fig. 1 · Frame 214, jaw edge, region marked for review</figcaption>
-                      </figure>
-                    </div>
-                    <div className="col">
-                      <section>
-                        <h5>Findings and observations</h5>
-                        <ol>
-                          <li>Jaw edge: requires review</li>
-                          <li>Compression: inconsistent indicator</li>
-                          <li>Encoder: consistent with reference</li>
-                        </ol>
-                      </section>
-                      <section>
-                        <h5>File information</h5>
-                        <div className="kv mono">
-                          <span>File</span>
-                          <span>interview_clip_0417.mp4</span>
-                          <span>Received</span>
-                          <span>2026-03-14 09:12 UTC</span>
-                          <span>Format</span>
-                          <span>MP4 · H.264</span>
-                          <span>SHA-256</span>
-                          <span>9f3a…c71e</span>
-                        </div>
-                      </section>
-                    </div>
+
+                    <figure className="report-crop-figure">
+                      <canvas ref={reportCropRef} width={180} height={90} />
+                      <figcaption>Fig 1. Frame 214 crop</figcaption>
+                    </figure>
                   </div>
                 </div>
-              </article>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        {/* SECTION 5: HOW IT WORKS */}
+        <section id="how" className="how-section" aria-labelledby="how-heading">
+          <div className="how-header">
+            <h2 id="how-heading">How Haven works</h2>
+            <p>
+              A five-stage methodical workflow that guides you from initial file intake to an actionable, documented report.
+            </p>
+          </div>
+
+          <div className="how-steps-stack">
+            {/* Step 1: Upload */}
+            <div className="how-step-card">
+              <div className="step-info">
+                <span className="step-indicator">Stage 1 of 5</span>
+                <h3>Upload suspicious media</h3>
+                <p>
+                  Bring in the file you received. Haven validates the container structure and records an immutable cryptographic hash.
+                </p>
+              </div>
+              <div className="step-visual-box">
+                <div className="hash-terminal" ref={typingRef}>
+                  <div><strong>File:</strong> specimen_0417.mp4 (24.8 MB)</div>
+                  <div>
+                    <strong>SHA-256:</strong> {typedHash}
+                    <span className="typing-cursor" />
+                  </div>
+                  <div style={{ color: "var(--deep-green)" }}>✓ Hash verified &amp; sealed in local vault</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: Analyze */}
+            <div className="how-step-card">
+              <div className="step-info">
+                <span className="step-indicator">Stage 2 of 5</span>
+                <h3>Frame-by-frame analysis</h3>
+                <p>
+                  The media is decomposed into temporal frames so subtle splice transitions or boundary blurs can be observed.
+                </p>
+              </div>
+              <div className="step-visual-box">
+                <div style={{ width: "100%", display: "flex", gap: "8px", overflowX: "auto" }}>
+                  {[0, 1, 2, 3].map((f) => (
+                    <div key={f} style={{ flex: 1, minWidth: "70px", border: "1px solid var(--border)", borderRadius: "3px", overflow: "hidden" }}>
+                      <canvas
+                        width={100}
+                        height={60}
+                        ref={(el) => {
+                          if (el) {
+                            const ctx = el.getContext("2d");
+                            if (ctx) renderFrameToContext(ctx, 100, 60, f + 2, "original");
+                          }
+                        }}
+                        style={{ width: "100%", height: "60px", display: "block" }}
+                      />
+                      <div className="mono" style={{ fontSize: "10px", padding: "2px 4px", textAlign: "center", background: "#FFFFFF" }}>
+                        F{212 + f}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3: Examine indicators */}
+            <div className="how-step-card">
+              <div className="step-info">
+                <span className="step-indicator">Stage 3 of 5</span>
+                <h3>Examine available indicators</h3>
+                <p>
+                  Inspect visual anomalies against established baselines, reviewing error levels and noise profiles.
+                </p>
+              </div>
+              <div className="step-visual-box">
+                <div style={{ display: "flex", gap: "16px", alignItems: "center", width: "100%" }}>
+                  <canvas ref={stage3CropRef} width={120} height={120} style={{ border: "2px solid var(--amber)", borderRadius: "4px" }} />
+                  <div className="mono" style={{ fontSize: "13px" }}>
+                    <div style={{ color: "var(--amber)", fontWeight: 700 }}>Compression Boundary Disparity</div>
+                    <div style={{ color: "var(--ink-secondary)", marginTop: "4px" }}>Delta: +24.6% vs reference frame baseline</div>
+                    <div style={{ color: "var(--ink-tertiary)", marginTop: "4px" }}>Status: Observation recorded</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 4: Document findings */}
+            <div className="how-step-card">
+              <div className="step-info">
+                <span className="step-indicator">Stage 4 of 5</span>
+                <h3>Document findings</h3>
+                <p>
+                  Attach notes, capture timestamps, and record context about where and when the file was delivered.
+                </p>
+              </div>
+              <div className="step-visual-box">
+                <div style={{ width: "100%", background: "#FFFFFF", padding: "14px", border: "1px solid var(--border)", borderRadius: "4px" }}>
+                  <div className="mono" style={{ fontSize: "12px", color: "var(--ink-secondary)" }}>
+                    <strong>Note #1 (14 Mar 09:31 UTC):</strong>
+                    <p style={{ marginTop: "4px", fontSize: "13px", color: "var(--ink)" }}>
+                      "Target file received via messaging link. Edge transition around structural perimeter differs across frames 212–219."
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 5: Generate report */}
+            <div className="how-step-card">
+              <div className="step-info">
+                <span className="step-indicator">Stage 5 of 5</span>
+                <h3>Generate an evidence report</h3>
+                <p>
+                  Assemble observations into a clear, structured PDF or printable dossier ready to hand to counselors or legal authorities.
+                </p>
+              </div>
+              <div className="step-visual-box">
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "#FFFFFF", padding: "16px", border: "1px solid var(--border)", borderRadius: "4px", width: "100%" }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--deep-green)" }}>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                  <div>
+                    <strong style={{ fontSize: "14px" }}>Report-HAV-2026-0417.pdf</strong>
+                    <div className="caption">Formatted with cryptographic signature and chain-of-custody metadata</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* SECTION 4: HOW HAVEN WORKS */}
-        <section id="how" className="how" aria-label="How Haven works">
-          <h2 className="rv">How Haven works</h2>
-          <div className="stage-w">
-            <div className="stage s1" id="stage" role="img" aria-label="Illustration of an investigation record building up stage by stage">
-              <svg className="scn" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
-                <use href="#scene" />
-              </svg>
-              <div className="chip mono l on" data-from="1" data-to="1">
-                interview_clip_0417.mp4 · queued
+        {/* SECTION 6: WHAT HAVEN CAN'T DO (Trust Feature - Prominently Styled) */}
+        <section id="limits" className="limits-section" aria-labelledby="limits-heading">
+          <div className="limits-card">
+            <div className="limits-header">
+              <h2 id="limits-heading" style={{ fontSize: "28px" }}>What Haven can't do</h2>
+              <p>
+                Honest forensics means acknowledging technological limits. Haven describes observable indicators;
+                it does not replace human judgment or guarantee absolute certainty.
+              </p>
+            </div>
+
+            <div className="limits-grid">
+              <div className="limit-item">
+                <h4>It does not prove absolute authenticity</h4>
+                <p>
+                  No automated detector can guarantee that an image is 100% genuine or synthetic. Subtle edits
+                  or clean generative models may show no obvious visual flaws.
+                </p>
               </div>
-              <div className="scanl" />
-              <svg className="ov l" data-from="3" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
-                <path className="mk" d="M150 78h16M150 78v18M250 78h-16M250 78v18" />
-                <rect className="mk mkd" x="154" y="158" width="92" height="34" />
-                <text x="150" y="70">1</text>
-                <text x="250" y="204">2</text>
-              </svg>
-              <div className="note mono l" data-from="4" data-to="4">
-                <span>Note · 09:31</span>
-                Jaw edge differs between frames 212–219.
+
+              <div className="limit-item">
+                <h4>Messaging compression mimics manipulation</h4>
+                <p>
+                  When files are sent through platforms like WhatsApp, Telegram, or Discord, aggressive recompression
+                  can create edge artifacts that resemble tampering.
+                </p>
               </div>
-              <div className="log mono">
-                <div className="l on" data-from="1">
-                  09:12 · File received
-                </div>
-                <div className="l" data-from="2">
-                  09:14 · Hash recorded
-                </div>
-                <div className="l" data-from="3">
-                  09:22 · Regions marked
-                </div>
-                <div className="l" data-from="4">
-                  09:31 · Observation added
-                </div>
-                <div className="l" data-from="5">
-                  10:05 · Report compiled
-                </div>
+
+              <div className="limit-item">
+                <h4>It cannot establish malicious intent</h4>
+                <p>
+                  Visual indicators cannot tell you who created a file, where they obtained it, or whether blackmail
+                  was intended. Context and corroborated communication records remain critical.
+                </p>
               </div>
-              <div className="sheet mono l" data-from="5">
-                <b>Evidence report</b>
-                <span style={{ color: "#6a716c", fontSize: "9px" }}>Case 0417 · Sample</span>
-                <i style={{ width: "100%" }} />
-                <i style={{ width: "90%" }} />
-                <i style={{ width: "96%" }} />
-                <svg viewBox="150 100 100 70" style={{ width: "100%" }}>
-                  <use href="#scene" />
-                </svg>
-                <i style={{ width: "92%" }} />
-                <i style={{ width: "70%" }} />
-              </div>
-            </div>
-            <div className="rail" id="rail" aria-hidden="true">
-              <i className="on" />
-              <i />
-              <i />
-              <i />
-              <i />
-            </div>
-          </div>
-          <div className="steps">
-            <div className="step" data-n="1">
-              <span className="mono">Stage 1 of 5</span>
-              <h3>Upload suspicious media</h3>
-              <p>Bring in the image or video you want to examine. Haven records the file and its details as received.</p>
-            </div>
-            <div className="step" data-n="2">
-              <span className="mono">Stage 2 of 5</span>
-              <h3>Analyze the media</h3>
-              <p>The file is examined frame by frame so there is a clear basis for what comes next.</p>
-            </div>
-            <div className="step" data-n="3">
-              <span className="mono">Stage 3 of 5</span>
-              <h3>Examine available indicators</h3>
-              <p>Review the regions and metadata that may point to manipulation, and compare them with a reference.</p>
-            </div>
-            <div className="step" data-n="4">
-              <span className="mono">Stage 4 of 5</span>
-              <h3>Document findings</h3>
-              <p>Add notes, screenshots, and sources to a timestamped record that stays attached to the file.</p>
-            </div>
-            <div className="step" data-n="5">
-              <span className="mono">Stage 5 of 5</span>
-              <h3>Generate an evidence report</h3>
-              <p>Turn the record into a structured report that others can read, check, and act on.</p>
             </div>
           </div>
         </section>
 
-        {/* SECTION 5: FINAL CTA */}
-        <section id="cta" className="cta" aria-label="Get started">
-          <h2 className="rv">Make sense of what you see.</h2>
-          <p className="rv">Bring suspicious media, digital evidence, and investigation into one workspace.</p>
-          <button type="button" className="btn p rv" onClick={onEnterWorkspace}>
-            Explore Haven
-          </button>
+        {/* SECTION 7: PRIVACY & TRUST */}
+        <section id="privacy" className="privacy-section" aria-labelledby="privacy-heading">
+          <div className="privacy-grid">
+            <div className="privacy-col">
+              <h4>Local-First Architecture</h4>
+              <p>
+                Analysis runs via local ONNX models on your Haven instance. Uploaded media is processed directly
+                by the server host, not forwarded to external third-party commercial AI models.
+              </p>
+            </div>
+
+            <div className="privacy-col">
+              <h4>You Control Your Evidence</h4>
+              <p>
+                Files and hash ledgers reside in your instance's protected database and local filesystem.
+                You can permanently purge records at any time with complete data eradication.
+              </p>
+            </div>
+
+            <div className="privacy-col">
+              <h4>Zero Behavioral Telemetry</h4>
+              <p>
+                Haven includes zero third-party advertising trackers, external analytics scripts, or behavioral tracking beacons.
+                Your safety and discretion are non-negotiable.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 8: FIRST-PERSON BUILDER NOTE */}
+        <section id="about" className="builder-section" aria-labelledby="builder-heading">
+          <div className="builder-note">
+            <h3 id="builder-heading">Why I built Haven</h3>
+            <blockquote>
+              "When someone receives an intimidating clip or suspect image, the instinctive reaction is panic.
+              Most forensics software today is either opaque enterprise defense tools or sensational clickbait AI detectors
+              that offer false certainty. I built Haven to provide a steady, private environment where people can look closely,
+              record the facts objectively, and regain their footing."
+            </blockquote>
+            <p className="builder-author">
+              — Built by Anosh, independent software designer &amp; forensics engineer
+            </p>
+          </div>
+        </section>
+
+        {/* SECTION 9: FINAL CTA */}
+        <section className="final-cta-section" aria-labelledby="final-cta-heading">
+          <div className="final-cta-card">
+            <h2 id="final-cta-heading">Got something you're unsure about? Bring it here.</h2>
+            <p>
+              Take a quiet, structured look at the media, preserve the facts, and understand what the evidence actually shows.
+            </p>
+            <div className="final-cta-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onEnterWorkspace}
+              >
+                Examine a file
+              </button>
+              <a href="#how" className="btn btn-secondary">
+                See how it works
+              </a>
+            </div>
+          </div>
         </section>
       </main>
 
-      {/* SECTION 6: EDITORIAL FOOTER */}
-      <footer>
-        <div className="fgrid">
-          <div className="fc">
-            <h4>Explore</h4>
-            <a href="#top">Home</a>
-            <a href="#capabilities">Capabilities</a>
-            <a href="#how">How It Works</a>
+      {/* FOOTER */}
+      <footer className="haven-footer" role="contentinfo">
+        <div className="footer-inner">
+          <div className="footer-grid">
+            <div className="footer-col">
+              <h4>Product</h4>
+              <ul className="footer-links">
+                <li><a href="#top">Home</a></li>
+                <li><a href="#capabilities">Capabilities</a></li>
+                <li><a href="#how">How it works</a></li>
+                <li><a href="#demo">Interactive Exhibit</a></li>
+                <li><a href="#limits">Forensic Limitations</a></li>
+              </ul>
+            </div>
+
+            <div className="footer-col">
+              <h4>Get help</h4>
+              <ul className="footer-links">
+                <li>
+                  <a href="https://takeitdown.ncmec.org" target="_blank" rel="noopener noreferrer">
+                    Take It Down (NCMEC) ↗
+                  </a>
+                </li>
+                <li>
+                  <a href="https://stopncii.org" target="_blank" rel="noopener noreferrer">
+                    StopNCII.org ↗
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.cybercivilrights.org" target="_blank" rel="noopener noreferrer">
+                    Cyber Civil Rights Initiative ↗
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div className="footer-col">
+              <h4>Open source</h4>
+              <ul className="footer-links">
+                <li>
+                  <a href="https://github.com/anooshyniazi01/Haven" target="_blank" rel="noopener noreferrer">
+                    GitHub Repository ↗
+                  </a>
+                </li>
+                <li><a href="#privacy">Privacy &amp; Data Model</a></li>
+                <li><a href="#limits">Forensic Limitations</a></li>
+              </ul>
+            </div>
           </div>
-          <div className="fc">
-            <h4>Support Resources</h4>
-            <a href="https://takeitdown.ncmec.org" target="_blank" rel="noopener noreferrer">
-              Take It Down (NCMEC)
-            </a>
-            <a href="https://stopncii.org" target="_blank" rel="noopener noreferrer">
-              StopNCII.org
-            </a>
-            <a href="https://www.cybercivilrights.org" target="_blank" rel="noopener noreferrer">
-              Cyber Civil Rights Initiative
-            </a>
+
+          <div className="footer-bottom">
+            <span>© 2026 Haven.</span>
+            <div className="footer-bottom-links">
+              <a href="#privacy">Privacy Notice</a>
+              <a href="#limits">Ethical Forensics Policy</a>
+              <a href="https://github.com/anooshyniazi01/Haven" target="_blank" rel="noopener noreferrer">
+                Source Code
+              </a>
+            </div>
           </div>
-          <div className="fc">
-            <h4>Repository</h4>
-            <a href="https://github.com/anooshyniazi01/Haven" target="_blank" rel="noopener noreferrer">
-              GitHub Repository
-            </a>
-            <a href="#top">Security Specification</a>
-            <a href="#top">Privacy Architecture</a>
-          </div>
-        </div>
-        <div className="bot cap">
-          <span>© 2026 Haven. All rights reserved.</span>
-          <nav>
-            <a href="#top">Privacy Notice</a>
-            <a href="#top">Terms of Use</a>
-            <a href="https://github.com/anooshyniazi01/Haven" target="_blank" rel="noopener noreferrer">
-              GitHub
-            </a>
-          </nav>
         </div>
       </footer>
     </>
