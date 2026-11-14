@@ -23,7 +23,7 @@ describe("LandingPage Production Suite (Phase 1)", () => {
     expect(screen.getByRole("link", { name: /See how it works/i })).toBeInTheDocument();
 
     // Forensic Exhibit
-    expect(screen.getByText(/00:07.13 · Frame 214/i)).toBeInTheDocument();
+    expect(screen.getByText(/00:07.13 · FRAME 214/i)).toBeInTheDocument();
     expect(screen.getByText(/SHA-256 9f3a…c71e/i)).toBeInTheDocument();
   });
 
@@ -37,21 +37,27 @@ describe("LandingPage Production Suite (Phase 1)", () => {
       screen.getByText(/Haven examines indicators and builds a record of what it observed/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Exhibit A · video received by message/i)).toBeInTheDocument();
-    expect(screen.getByText(/Exhibit B · provenance notes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exhibit B · Quantization step variance/i)).toBeInTheDocument();
   });
 
-  it("renders Section 3: All 4 distinct Capabilities panels", () => {
+  it("renders Section 3: All 4 distinct Capabilities panels interactively", () => {
     render(<LandingPage onEnterWorkspace={vi.fn()} />);
 
     expect(screen.getByRole("heading", { level: 3, name: "Frame by frame" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Side by side" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "An investigation log" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "A readable report" })).toBeInTheDocument();
 
-    // Specific capability exhibits
-    expect(screen.getByText(/Reference/i)).toBeInTheDocument();
-    expect(screen.getByText(/Submitted file/i)).toBeInTheDocument();
-    expect(screen.getByText(/Digital media examination/i)).toBeInTheDocument();
+    // Click Side by side tab
+    fireEvent.click(screen.getByRole("tab", { name: /Side by side/i }));
+    expect(screen.getByRole("heading", { level: 3, name: "Side by side" })).toBeInTheDocument();
+    expect(screen.getByText(/VERIFIED REFERENCE ASSET/i)).toBeInTheDocument();
+    expect(screen.getByText(/SUBMITTED SUSPICIOUS FILE/i)).toBeInTheDocument();
+
+    // Click An investigation log tab
+    fireEvent.click(screen.getByRole("tab", { name: /An investigation log/i }));
+    expect(screen.getByRole("heading", { level: 3, name: "An investigation log" })).toBeInTheDocument();
+
+    // Click A readable report tab
+    fireEvent.click(screen.getByRole("tab", { name: /A readable report/i }));
+    expect(screen.getByRole("heading", { level: 3, name: "A readable report" })).toBeInTheDocument();
   });
 
   it("renders Section 4: How Haven Works with all 5 sequential steps", () => {
@@ -59,9 +65,21 @@ describe("LandingPage Production Suite (Phase 1)", () => {
 
     expect(screen.getByRole("heading", { level: 2, name: "How Haven works" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "Drop the file" })).toBeInTheDocument();
+
+    // Navigate to step 2
+    fireEvent.click(screen.getByRole("button", { name: /Next →/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Examine frame by frame" })).toBeInTheDocument();
+
+    // Navigate to step 3
+    fireEvent.click(screen.getByRole("button", { name: /Next →/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Review what it found" })).toBeInTheDocument();
+
+    // Navigate to step 4
+    fireEvent.click(screen.getByRole("button", { name: /Next →/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Add what you know" })).toBeInTheDocument();
+
+    // Navigate to step 5
+    fireEvent.click(screen.getByRole("button", { name: /Next →/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Export the record" })).toBeInTheDocument();
   });
 
@@ -86,8 +104,6 @@ describe("LandingPage Production Suite (Phase 1)", () => {
     expect(screen.getByText("StopNCII.org")).toBeInTheDocument();
     expect(screen.getByText("GitHub Repository")).toBeInTheDocument();
     expect(screen.getByText(/© 2026 Haven. All rights reserved./i)).toBeInTheDocument();
-
-    // Footer nav casing check
     expect(screen.getByRole("link", { name: "How it works" })).toBeInTheDocument();
   });
 });
