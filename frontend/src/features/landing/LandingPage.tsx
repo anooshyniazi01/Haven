@@ -254,39 +254,56 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
             <rect x="186" y="220" width="28" height="14" rx="2" fill="#141a15" />
             <rect x="168" y="232" width="64" height="5" rx="2" fill="#111611" />
             {/* Monitor bezel */}
-            <rect x="62" y="40" width="276" height="184" rx="6" fill="#0e1410" />
+            <rect x="58" y="38" width="284" height="188" rx="6" fill="#0e1410" />
             {/* Screen */}
-            <rect x="70" y="48" width="260" height="168" rx="3" fill="#060d08" />
+            <rect x="66" y="46" width="268" height="172" rx="3" fill="#060d08" />
             {/* Screen ambient glow */}
-            <rect x="70" y="48" width="260" height="168" rx="3" fill="url(#scrglow)" />
+            <rect x="66" y="46" width="268" height="172" rx="3" fill="url(#scrglow)" />
             {/* Title bar */}
-            <rect x="70" y="48" width="260" height="18" rx="3" fill="#101810" />
+            <rect x="66" y="46" width="268" height="18" rx="3" fill="#101810" />
             {/* Traffic lights */}
-            <circle cx="84" cy="57" r="4" fill="#2a3a2a" />
-            <circle cx="96" cy="57" r="4" fill="#2a3a2a" />
-            <circle cx="108" cy="57" r="4" fill="#39D98A" opacity=".6" />
+            <circle cx="80" cy="55" r="3.5" fill="#2a3a2a" />
+            <circle cx="91" cy="55" r="3.5" fill="#2a3a2a" />
+            <circle cx="102" cy="55" r="3.5" fill="#39D98A" opacity=".7" />
             {/* Title bar text sim */}
-            <rect x="160" y="54" width="60" height="5" rx="2" fill="#2a3a2a" />
-            {/* Terminal content — green text lines */}
-            <rect x="82" y="76" width="140" height="4" rx="1" fill="#39D98A" opacity=".7" />
-            <rect x="82" y="86" width="90" height="4" rx="1" fill="#39D98A" opacity=".4" />
-            <rect x="82" y="96" width="110" height="4" rx="1" fill="#39D98A" opacity=".55" />
-            <rect x="82" y="106" width="60" height="4" rx="1" fill="#A5AAA6" opacity=".35" />
-            <rect x="82" y="116" width="130" height="4" rx="1" fill="#39D98A" opacity=".5" />
-            <rect x="82" y="126" width="80" height="4" rx="1" fill="#A5AAA6" opacity=".3" />
-            <rect x="82" y="136" width="120" height="4" rx="1" fill="#39D98A" opacity=".6" />
-            <rect x="82" y="146" width="50" height="4" rx="1" fill="#A5AAA6" opacity=".25" />
-            {/* Frame thumbnail strip */}
-            <rect x="82" y="162" width="236" height="40" rx="2" fill="#0a1009" />
-            <rect x="84" y="164" width="27" height="36" rx="1" fill="#182018" />
-            <rect x="113" y="164" width="27" height="36" rx="1" fill="#182018" />
-            <rect x="142" y="164" width="27" height="36" rx="1" fill="#182018" />
-            <rect x="171" y="164" width="27" height="36" rx="1" fill="#182018" />
-            {/* Active frame */}
-            <rect x="200" y="162" width="29" height="40" rx="1" fill="#1e3328" stroke="#39D98A" strokeWidth="1.5" />
-            <rect x="231" y="164" width="27" height="36" rx="1" fill="#182018" />
-            <rect x="260" y="164" width="27" height="36" rx="1" fill="#182018" />
-            <rect x="289" y="164" width="27" height="36" rx="1" fill="#182018" />
+            <rect x="150" y="52" width="80" height="5" rx="2" fill="#202c23" />
+
+            {/* Left column: Terminal telemetry logs */}
+            <rect x="76" y="74" width="94" height="3.5" rx="1" fill="#39D98A" opacity=".75" />
+            <rect x="76" y="83" width="70" height="3.5" rx="1" fill="#A5AAA6" opacity=".4" />
+            <rect x="76" y="92" width="86" height="3.5" rx="1" fill="#39D98A" opacity=".55" />
+            <rect x="76" y="101" width="55" height="3.5" rx="1" fill="#A5AAA6" opacity=".35" />
+            <rect x="76" y="110" width="90" height="3.5" rx="1" fill="#39D98A" opacity=".6" />
+            <rect x="76" y="119" width="65" height="3.5" rx="1" fill="#A5AAA6" opacity=".3" />
+            <rect x="76" y="128" width="82" height="3.5" rx="1" fill="#39D98A" opacity=".5" />
+            <rect x="76" y="137" width="50" height="3.5" rx="1" fill="#A5AAA6" opacity=".25" />
+            <rect x="76" y="146" width="78" height="3.5" rx="1" fill="#39D98A" opacity=".65" />
+
+            {/* Right column: Video Frame Inspection Viewport */}
+            <rect x="180" y="72" width="144" height="80" rx="2" fill="#09120d" stroke="#1c2c20" strokeWidth="0.8" />
+            {/* Inspection coordinate grid */}
+            <path d="M180 92h144M180 112h144M180 132h144M216 72v80M252 72v80M288 72v80" stroke="#132217" strokeWidth="0.6" strokeDasharray="2 2" />
+            
+            {/* Subject contour wireframe in inspection view */}
+            <path d="M236 80c14 0 25 9 25 21 0 7-3 13-9 16v7c-5 9-14 14-23 14-11 0-18-7-20-16l12-5c3 5 7 7 12 7 6 0 11-4 13-10v-3c-2 0-3-1-5-2-7-3-11-10-11-17 0-12 11-21 25-21z" fill="#131e17" />
+            {/* Facial profile boundary curve */}
+            <path d="M248 85c5 3 9 9 9 16 0 4-2 9-5 12l-4 5c-3 4-6 7-11 8" fill="none" stroke="#253d2e" strokeWidth="1.2" />
+            {/* Marked artifact boundary (Jaw contour halo anomaly) */}
+            <path d="M237 126c4-1 8-4 11-7l3-6" fill="none" stroke="#D9A441" strokeWidth="1.8" strokeDasharray="2 2" />
+            <circle cx="245" cy="121" r="5" fill="#39D98A" fillOpacity="0.2" stroke="#39D98A" strokeWidth="0.8" />
+
+            {/* Bottom: Frame thumbnail strip */}
+            <rect x="76" y="160" width="248" height="42" rx="2" fill="#080e09" />
+            <rect x="78" y="162" width="28" height="38" rx="1" fill="#141c15" />
+            <rect x="109" y="162" width="28" height="38" rx="1" fill="#141c15" />
+            <rect x="140" y="162" width="28" height="38" rx="1" fill="#141c15" />
+            <rect x="171" y="162" width="28" height="38" rx="1" fill="#141c15" />
+            {/* Active frame 214 */}
+            <rect x="202" y="160" width="30" height="42" rx="1" fill="#1b2e23" stroke="#39D98A" strokeWidth="1.5" />
+            <rect x="235" y="162" width="28" height="38" rx="1" fill="#141c15" />
+            <rect x="266" y="162" width="28" height="38" rx="1" fill="#141c15" />
+            <rect x="297" y="162" width="25" height="38" rx="1" fill="#141c15" />
+
             {/* Film grain + vignette */}
             <rect width="400" height="300" filter="url(#gr)" opacity=".35" />
             <rect width="400" height="300" fill="url(#vg)" />
@@ -337,19 +354,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
             <div className="frame">
               <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Sample video frame with two marked regions">
                 <use href="#scene" />
-                <path className="mk" d="M150 78h16M150 78v16M250 78h-16M250 78v16" />
-                <rect className="mk mkd" x="154" y="158" width="92" height="34" />
-                <text x="258" y="76">1</text>
-                <text x="250" y="204">2</text>
+                <path className="mk" d="M180 72h14M180 72v14M324 72h-14M324 72v14M180 152h14M180 152v-14M324 152h-14M324 152v-14" />
+                <rect className="mk mkd" x="228" y="106" width="36" height="26" />
+                <text x="328" y="74">1</text>
+                <text x="268" y="112">2</text>
               </svg>
               <span className="tc mono">00:07.13 · Frame 214</span>
               <span className="tc r mono">Sample · illustrative</span>
               <div className="mag">
-                <svg viewBox="154 158 92 55" role="img" aria-label="Enlarged crop of region 2">
+                <svg viewBox="228 106 36 26" role="img" aria-label="Enlarged crop of region 2">
                   <use href="#scene" />
-                  <rect className="mk mkd" x="157" y="161" width="86" height="30" />
+                  <rect className="mk mkd" x="230" y="108" width="32" height="22" />
                 </svg>
-                <div className="cap mono">2 · Jaw edge · enlarged</div>
+                <div className="cap mono">2 · Jaw contour · enlarged</div>
               </div>
             </div>
             <div className="below">
@@ -376,9 +393,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
             <figcaption className="cap mono">Exhibit A · video received by message, 14 Mar</figcaption>
           </figure>
           <figure className="ex b rv">
-            <svg viewBox="165 104 70 70" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Enlarged crop of region of interest">
+            <svg viewBox="210 95 65 55" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Enlarged crop of region of interest">
               <use href="#scene" />
-              <rect className="mk mkd" x="170" y="116" width="60" height="26" />
+              <rect className="mk mkd" x="228" y="106" width="36" height="26" />
             </svg>
             <figcaption className="cap mono">Exhibit A · frame 214, enlarged crop</figcaption>
           </figure>
@@ -430,13 +447,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
                   <div className="m1">
                     <svg className="main" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Large sample frame with a selected region">
                       <use href="#scene" />
-                      <path className="mk" d="M146 74h18M146 74v18M254 74h-18M254 74v18M146 196h18M146 196v-18M254 196h-18M254 196v-18" />
-                      <rect className="mk mkd" x="170" y="108" width="60" height="30" />
-                      <text x="236" y="106">A</text>
+                      <path className="mk" d="M180 72h14M180 72v14M324 72h-14M324 72v14M180 152h14M180 152v-14M324 152h-14M324 152v-14" />
+                      <rect className="mk mkd" x="228" y="106" width="36" height="26" />
+                      <text x="268" y="112">A</text>
                     </svg>
                     <div className="mag2">
-                      <svg viewBox="170 108 60 60" role="img" aria-label="Enlarged crop of region A">
+                      <svg viewBox="228 106 36 26" role="img" aria-label="Enlarged crop of region A">
                         <use href="#scene" />
+                        <rect className="mk mkd" x="230" y="108" width="32" height="22" />
                       </svg>
                       <div className="cap mono">A · 6× · frame 214</div>
                     </div>
@@ -455,27 +473,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
                 <div className="v">
                   <div className="cmp">
                     <div>
-                      <svg viewBox="130 70 140 105" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Reference frame">
+                      <svg viewBox="176 68 152 90" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Reference frame">
                         <use href="#scene" />
                       </svg>
                       <span className="lb mono">Reference</span>
                       <div className="dt">
-                        <svg viewBox="160 150 80 48">
+                        <svg viewBox="228 106 36 26">
                           <use href="#scene" />
                         </svg>
                       </div>
                     </div>
                     <div>
-                      <svg viewBox="130 70 140 105" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Submitted frame with an area marked for review">
+                      <svg viewBox="176 68 152 90" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Submitted frame with an area marked for review">
                         <use href="#scene" />
-                        <path d="M160 156Q200 196 240 154L236 168Q200 204 166 170Z" fill="#9aa59c" opacity=".28" filter="url(#b1)" />
-                        <rect className="mk wn mkd" x="156" y="152" width="88" height="40" />
+                        <rect className="mk wn mkd" x="228" y="106" width="36" height="26" />
                       </svg>
                       <span className="lb mono">Submitted file</span>
                       <div className="dt">
-                        <svg viewBox="160 150 80 48">
+                        <svg viewBox="228 106 36 26">
                           <use href="#scene" />
-                          <path d="M160 156Q200 196 240 154L236 168Q200 204 166 170Z" fill="#9aa59c" opacity=".28" />
+                          <rect className="mk wn mkd" x="230" y="108" width="32" height="22" />
                         </svg>
                       </div>
                     </div>
@@ -588,9 +605,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
                         </p>
                       </section>
                       <figure>
-                        <svg viewBox="140 90 120 75" role="img" aria-label="Report figure">
+                        <svg viewBox="200 85 100 65" role="img" aria-label="Report figure">
                           <use href="#scene" />
-                          <rect className="mk mkd" x="150" y="130" width="100" height="30" />
+                          <rect className="mk mkd" x="228" y="106" width="36" height="26" />
                         </svg>
                         <figcaption className="mono">Fig. 1 · Frame 214, jaw edge, region marked for review</figcaption>
                       </figure>
