@@ -82,7 +82,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
     }
 
     /* Pinned horizontal capabilities (desktop only) */
-    const pbar = $("#pbar");
     const sec = $("#capabilities");
     const track = $("#track");
     const cnt = $("#cnt");
@@ -101,11 +100,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
     }
 
     function pin() {
-      if (!mq.matches || !sec || !track || !pbar || !cnt) return;
+      if (!mq.matches || !sec || !track || !cnt) return;
       const t = clamp((window.scrollY - sec.offsetTop) / (total || 1));
       track.style.transform = `translate3d(${-t * total}px,0,0)`;
       cnt.textContent = String(Math.min(4, Math.round(t * 3) + 1));
-      pbar.style.width = t * 100 + "%";
     }
 
     const handleTrackScroll = () => {
@@ -219,7 +217,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
 
   return (
     <>
-      {/* SVG Global Definitions: Lighting, Film Grain, Vignette & Procedural Face Scene */}
+      {/* SVG Global Definitions: Lighting, Film Grain, Vignette & Forensic Workstation Scene */}
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
         <defs>
           <filter id="b4">
@@ -233,58 +231,70 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
             <feColorMatrix values="0 0 0 0 .75 0 0 0 0 .8 0 0 0 0 .75 .7 0 0 0 -.18" />
           </filter>
           <linearGradient id="wl" x1="0" x2="1">
-            <stop offset="0" stopColor="#2b332e" />
-            <stop offset="1" stopColor="#0c100d" />
+            <stop offset="0" stopColor="#1a2420" />
+            <stop offset="1" stopColor="#0a0e0b" />
           </linearGradient>
-          <radialGradient id="fg" cx=".38" cy=".34" r=".75">
-            <stop offset="0" stopColor="#8a948c" />
-            <stop offset=".55" stopColor="#4d564f" />
-            <stop offset="1" stopColor="#232925" />
+          <radialGradient id="scrglow" cx=".5" cy=".45" r=".5">
+            <stop offset="0" stopColor="#39D98A" stopOpacity=".12" />
+            <stop offset="1" stopColor="#39D98A" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="vg" cx=".5" cy=".5" r=".75">
             <stop offset=".55" stopColor="#000" stopOpacity="0" />
             <stop offset="1" stopColor="#000" stopOpacity=".65" />
           </radialGradient>
 
-          {/* Procedural Forensic Inspection Portrait */}
+          {/* Forensic workstation scene — no human face */}
           <symbol id="scene" viewBox="0 0 400 300">
+            {/* Room background */}
             <rect width="400" height="300" fill="url(#wl)" />
-            <rect x="-20" y="10" width="120" height="190" fill="#9aa59c" opacity=".2" filter="url(#b4)" />
-            <g filter="url(#b4)" fill="#6a756c" opacity=".3">
-              <circle cx="338" cy="70" r="20" />
-              <circle cx="366" cy="118" r="13" />
-              <circle cx="312" cy="38" r="9" />
-            </g>
-            <path d="M60 300C64 236 128 210 200 210S336 236 340 300Z" fill="#1a201c" filter="url(#b1)" />
-            <path d="M174 212L200 266L226 212Z" fill="#5c665e" opacity=".85" filter="url(#b1)" />
-            <rect x="180" y="172" width="40" height="46" fill="#3a423c" filter="url(#b1)" />
-            <ellipse cx="200" cy="130" rx="44" ry="56" fill="url(#fg)" filter="url(#b1)" />
-            <path
-              d="M153 126C148 82 176 68 203 70S254 86 247 128C240 104 214 96 200 98S160 104 153 126Z"
-              fill="#131814"
-              filter="url(#b1)"
-            />
-            <ellipse cx="228" cy="138" rx="22" ry="54" fill="#0b0e0c" opacity=".38" filter="url(#b4)" />
-            <g fill="#161b17">
-              <ellipse cx="184" cy="130" rx="6.5" ry="2.6" />
-              <ellipse cx="216" cy="130" rx="6.5" ry="2.6" />
-              <rect x="176" y="120" width="17" height="2.4" />
-              <rect x="208" y="120" width="17" height="2.4" />
-            </g>
-            <path
-              d="M200 134L195 156H205M190 168Q200 172 210 168"
-              fill="none"
-              stroke="#252b26"
-              strokeWidth="2"
-              opacity=".6"
-            />
-            <rect width="400" height="300" filter="url(#gr)" opacity=".55" />
+            {/* Desk surface */}
+            <rect x="0" y="232" width="400" height="68" fill="#0d1310" />
+            <rect x="0" y="230" width="400" height="4" fill="#182018" />
+            {/* Monitor stand */}
+            <rect x="186" y="220" width="28" height="14" rx="2" fill="#141a15" />
+            <rect x="168" y="232" width="64" height="5" rx="2" fill="#111611" />
+            {/* Monitor bezel */}
+            <rect x="62" y="40" width="276" height="184" rx="6" fill="#0e1410" />
+            {/* Screen */}
+            <rect x="70" y="48" width="260" height="168" rx="3" fill="#060d08" />
+            {/* Screen ambient glow */}
+            <rect x="70" y="48" width="260" height="168" rx="3" fill="url(#scrglow)" />
+            {/* Title bar */}
+            <rect x="70" y="48" width="260" height="18" rx="3" fill="#101810" />
+            {/* Traffic lights */}
+            <circle cx="84" cy="57" r="4" fill="#2a3a2a" />
+            <circle cx="96" cy="57" r="4" fill="#2a3a2a" />
+            <circle cx="108" cy="57" r="4" fill="#39D98A" opacity=".6" />
+            {/* Title bar text sim */}
+            <rect x="160" y="54" width="60" height="5" rx="2" fill="#2a3a2a" />
+            {/* Terminal content — green text lines */}
+            <rect x="82" y="76" width="140" height="4" rx="1" fill="#39D98A" opacity=".7" />
+            <rect x="82" y="86" width="90" height="4" rx="1" fill="#39D98A" opacity=".4" />
+            <rect x="82" y="96" width="110" height="4" rx="1" fill="#39D98A" opacity=".55" />
+            <rect x="82" y="106" width="60" height="4" rx="1" fill="#A5AAA6" opacity=".35" />
+            <rect x="82" y="116" width="130" height="4" rx="1" fill="#39D98A" opacity=".5" />
+            <rect x="82" y="126" width="80" height="4" rx="1" fill="#A5AAA6" opacity=".3" />
+            <rect x="82" y="136" width="120" height="4" rx="1" fill="#39D98A" opacity=".6" />
+            <rect x="82" y="146" width="50" height="4" rx="1" fill="#A5AAA6" opacity=".25" />
+            {/* Frame thumbnail strip */}
+            <rect x="82" y="162" width="236" height="40" rx="2" fill="#0a1009" />
+            <rect x="84" y="164" width="27" height="36" rx="1" fill="#182018" />
+            <rect x="113" y="164" width="27" height="36" rx="1" fill="#182018" />
+            <rect x="142" y="164" width="27" height="36" rx="1" fill="#182018" />
+            <rect x="171" y="164" width="27" height="36" rx="1" fill="#182018" />
+            {/* Active frame */}
+            <rect x="200" y="162" width="29" height="40" rx="1" fill="#1e3328" stroke="#39D98A" strokeWidth="1.5" />
+            <rect x="231" y="164" width="27" height="36" rx="1" fill="#182018" />
+            <rect x="260" y="164" width="27" height="36" rx="1" fill="#182018" />
+            <rect x="289" y="164" width="27" height="36" rx="1" fill="#182018" />
+            {/* Film grain + vignette */}
+            <rect width="400" height="300" filter="url(#gr)" opacity=".35" />
             <rect width="400" height="300" fill="url(#vg)" />
           </symbol>
         </defs>
       </svg>
 
-      {/* Sticky Header with Dynamic Backdrop Blur */}
+      {/* Sticky Header */}
       <header id="hdr">
         <a className="h" href="#capabilities">
           Capabilities
@@ -292,8 +302,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
         <a className="h" href="#how">
           How it works
         </a>
-        <button type="button" className="btn s" onClick={onEnterWorkspace}>
-          Explore Haven
+        <button type="button" className="nav-cta" onClick={onEnterWorkspace}>
+          Open Haven
         </button>
       </header>
 
@@ -309,16 +319,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
             <div id="slot" aria-hidden="true">
               Haven
             </div>
-            <div className="tag hfade e e1">Your digital safety workspace.</div>
+            <div className="tag hfade e e1">When something looks off, look closer.</div>
             <p className="d hfade e e2">
-              Examine suspicious media. Document digital evidence. Make informed decisions.
+              Upload an image or video. Haven checks what it can, records what it finds, and exports a clear report.
             </p>
             <div className="ctas hfade e e3">
-              <button type="button" className="btn p" onClick={onEnterWorkspace}>
-                Explore Haven
+              <button type="button" className="btn-start" onClick={onEnterWorkspace}>
+                Open Haven
               </button>
-              <a className="btn s" href="#how">
-                How it works
+              <a className="btn-learn" href="#how">
+                See how it works →
               </a>
             </div>
           </div>
@@ -352,11 +362,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
 
         {/* SECTION 2: INTRO */}
         <section className="intro" aria-label="Introduction">
-          <h2 className="rv">Not everything online is what it appears to be.</h2>
+          <h2 className="rv">Some things are hard to verify by eye.</h2>
           <div className="copy rv">
             <p>
-              Suspicious media and digital threats can be difficult to assess. Haven brings media examination,
-              evidence documentation, and investigation into one workspace.
+              Edited media can look convincing. Haven examines indicators and builds a record of what it observed — not a verdict.
             </p>
             <p className="cap">Illustrative exhibits shown. No real analysis is performed in this prototype.</p>
           </div>
@@ -367,7 +376,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
             <figcaption className="cap mono">Exhibit A · video received by message, 14 Mar</figcaption>
           </figure>
           <figure className="ex b rv">
-            <svg viewBox="165 104 70 70" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Enlarged crop of the eye region">
+            <svg viewBox="165 104 70 70" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Enlarged crop of region of interest">
               <use href="#scene" />
               <rect className="mk mkd" x="170" y="116" width="60" height="26" />
             </svg>
@@ -409,16 +418,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
                 <span id="cnt">1</span> / 4
               </span>
             </div>
-            <div className="prog" aria-hidden="true">
-              <i id="pbar" />
-            </div>
             <div className="track" id="track">
               {/* Panel 1 */}
               <article className="panel p1">
                 <div className="t">
                   <span className="mono n">01</span>
-                  <h3>Media analysis</h3>
-                  <p>Examine suspicious images and videos for potential manipulation indicators, frame by frame.</p>
+                  <h3>Frame by frame</h3>
+                  <p>Step through video one frame at a time. Mark anything that looks off.</p>
                 </div>
                 <div className="v">
                   <div className="m1">
@@ -482,8 +488,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
                 <div className="band">
                   <div className="t">
                     <span className="mono n">02</span>
-                    <h3>Authenticity investigation</h3>
-                    <p>Compare a submitted file with a reference and review indicators that may need a closer look.</p>
+                    <h3>Side by side</h3>
+                    <p>Compare a submitted file against a reference. Mark where they differ.</p>
                   </div>
                   <div className="rows mono">
                     <div>
@@ -512,51 +518,48 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
                     03
                   </div>
                   <span className="mono n">03</span>
-                  <h3>Evidence documentation</h3>
-                  <p>Organize relevant information and preserve a timestamped investigation record.</p>
+                  <h3>An investigation log</h3>
+                  <p>Every step is recorded automatically. Add your own notes when Haven can't see the full picture.</p>
                   <span className="cap mono">Illustrative record</span>
                 </div>
                 <div className="v">
-                  <ol className="led mono">
-                    <li>
-                      <span className="tm">14 Mar 09:12</span>
-                      <div>
-                        <b>File received</b>
-                        <div className="cap">interview_clip_0417.mp4 preserved as received</div>
+                  <div className="evlog mono">
+                    <div className="eventry">
+                      <time className="evtime">14 Mar 09:12</time>
+                      <div className="evtext">
+                        <strong>File received</strong>
+                        <span>interview_clip_0417.mp4 preserved as received</span>
                       </div>
-                    </li>
-                    <li>
-                      <span className="tm">14 Mar 09:14</span>
-                      <div>
-                        <b>Hash recorded</b>
-                        <div className="cap">SHA-256 9f3a…c71e</div>
+                    </div>
+                    <div className="eventry">
+                      <time className="evtime">14 Mar 09:14</time>
+                      <div className="evtext">
+                        <strong>Hash recorded</strong>
+                        <span>SHA-256 9f3a…c71e</span>
                       </div>
-                    </li>
-                    <li>
-                      <span className="tm">14 Mar 09:22</span>
-                      <div>
-                        <b>Frame captured</b>
-                        <div className="cap">Frame 214, jaw edge</div>
+                    </div>
+                    <div className="eventry">
+                      <time className="evtime">14 Mar 09:22</time>
+                      <div className="evtext">
+                        <strong>Frame captured</strong>
+                        <span>Frame 214, jaw edge</span>
                       </div>
-                      <svg viewBox="160 150 80 48" role="img" aria-label="Captured frame crop">
-                        <use href="#scene" />
-                      </svg>
-                    </li>
-                    <li className="w">
-                      <span className="tm">14 Mar 09:31</span>
-                      <div>
-                        <b>Observation documented</b>
-                        <div className="cap">Edge differs across frames 212–219. Requires review.</div>
+                    </div>
+                    <div className="eventry w">
+                      <time className="evtime">14 Mar 09:31</time>
+                      <div className="evtext">
+                        <strong>Observation documented</strong>
+                        <span>Edge differs across frames 212–219. Requires review.</span>
                       </div>
-                    </li>
-                    <li>
-                      <span className="tm">14 Mar 09:47</span>
-                      <div>
-                        <b>Source information added</b>
-                        <div className="cap">No earlier upload located</div>
+                    </div>
+                    <div className="eventry">
+                      <time className="evtime">14 Mar 09:47</time>
+                      <div className="evtext">
+                        <strong>Source information added</strong>
+                        <span>No earlier upload located</span>
                       </div>
-                    </li>
-                  </ol>
+                    </div>
+                  </div>
                 </div>
               </article>
 
@@ -564,8 +567,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
               <article className="panel p4">
                 <div className="t">
                   <span className="mono n">04</span>
-                  <h3>Evidence reports</h3>
-                  <p>Present investigation findings through structured, readable reports.</p>
+                  <h3>A readable report</h3>
+                  <p>Export a clear summary. Structured enough to send to a platform, lawyer, or support org.</p>
                 </div>
                 <div className="v">
                   <div className="doc">
@@ -674,50 +677,53 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
                 <i style={{ width: "70%" }} />
               </div>
             </div>
-            <div className="rail" id="rail" aria-hidden="true">
-              <i className="on" />
-              <i />
-              <i />
-              <i />
-              <i />
-            </div>
           </div>
           <div className="steps">
             <div className="step" data-n="1">
-              <span className="mono">Stage 1 of 5</span>
-              <h3>Upload suspicious media</h3>
-              <p>Bring in the image or video you want to examine. Haven records the file and its details as received.</p>
+              <h3>Drop the file</h3>
+              <p>Haven accepts images and videos. It records the hash immediately.</p>
             </div>
             <div className="step" data-n="2">
-              <span className="mono">Stage 2 of 5</span>
-              <h3>Analyze the media</h3>
-              <p>The file is examined frame by frame so there is a clear basis for what comes next.</p>
+              <h3>Examine frame by frame</h3>
+              <p>The file opens one frame at a time. Each region is checked.</p>
             </div>
             <div className="step" data-n="3">
-              <span className="mono">Stage 3 of 5</span>
-              <h3>Examine available indicators</h3>
-              <p>Review the regions and metadata that may point to manipulation, and compare them with a reference.</p>
+              <h3>Review what it found</h3>
+              <p>Haven shows you the indicators. You decide what matters.</p>
             </div>
             <div className="step" data-n="4">
-              <span className="mono">Stage 4 of 5</span>
-              <h3>Document findings</h3>
-              <p>Add notes, screenshots, and sources to a timestamped record that stays attached to the file.</p>
+              <h3>Add what you know</h3>
+              <p>Write in context Haven can't see — when you got it, from whom, what was said.</p>
             </div>
             <div className="step" data-n="5">
-              <span className="mono">Stage 5 of 5</span>
-              <h3>Generate an evidence report</h3>
-              <p>Turn the record into a structured report that others can read, check, and act on.</p>
+              <h3>Export the record</h3>
+              <p>One structured document with everything in one place.</p>
             </div>
           </div>
         </section>
 
         {/* SECTION 5: FINAL CTA */}
         <section id="cta" className="cta" aria-label="Get started">
-          <h2 className="rv">Make sense of what you see.</h2>
-          <p className="rv">Bring suspicious media, digital evidence, and investigation into one workspace.</p>
-          <button type="button" className="btn p rv" onClick={onEnterWorkspace}>
-            Explore Haven
-          </button>
+          <div className="cta-inner">
+            <div className="cta-left">
+              <h2 className="rv">Start with the file you have.</h2>
+              <p className="rv">Open it here. Haven examines what it can and helps you build a record.</p>
+              <button type="button" className="btn-start rv" onClick={onEnterWorkspace}>
+                Open Haven
+              </button>
+            </div>
+            <div className="cta-right" aria-hidden="true">
+              <div className="cta-visual">
+                <div className="cv-line">$ haven examine interview_clip_0417.mp4</div>
+                <div className="cv-line hl">→ file received</div>
+                <div className="cv-line">→ hash recorded · SHA-256 9f3a…c71e</div>
+                <div className="cv-line hl">→ examining frames</div>
+                <div className="cv-line">→ indicators noted · 2 regions flagged</div>
+                <div className="cv-line hl">→ record built</div>
+                <div className="cv-line">→ export ready · report_0417.pdf</div>
+              </div>
+            </div>
+          </div>
         </section>
       </main>
 
@@ -728,7 +734,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
             <h4>Explore</h4>
             <a href="#top">Home</a>
             <a href="#capabilities">Capabilities</a>
-            <a href="#how">How It Works</a>
+            <a href="#how">How it works</a>
           </div>
           <div className="fc">
             <h4>Support Resources</h4>
@@ -756,9 +762,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
           <nav>
             <a href="#top">Privacy Notice</a>
             <a href="#top">Terms of Use</a>
-            <a href="https://github.com/anooshyniazi01/Haven" target="_blank" rel="noopener noreferrer">
-              GitHub
-            </a>
           </nav>
         </div>
       </footer>

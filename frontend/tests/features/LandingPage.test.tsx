@@ -12,15 +12,15 @@ describe("LandingPage Production Suite (Phase 1)", () => {
     expect(wordmarks.length).toBeGreaterThanOrEqual(1);
 
     // Tagline & description
-    expect(screen.getByText("Your digital safety workspace.")).toBeInTheDocument();
+    expect(screen.getByText("When something looks off, look closer.")).toBeInTheDocument();
     expect(
-      screen.getByText("Examine suspicious media. Document digital evidence. Make informed decisions.")
+      screen.getByText(/Upload an image or video\. Haven checks what it can/i)
     ).toBeInTheDocument();
 
     // CTAs
-    const exploreButtons = screen.getAllByRole("button", { name: /Explore Haven/i });
-    expect(exploreButtons.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("link", { name: "How it works" })).toBeInTheDocument();
+    const openButtons = screen.getAllByRole("button", { name: /Open Haven/i });
+    expect(openButtons.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("link", { name: /See how it works/i })).toBeInTheDocument();
 
     // Forensic Exhibit
     expect(screen.getByText(/00:07.13 · Frame 214/i)).toBeInTheDocument();
@@ -31,10 +31,10 @@ describe("LandingPage Production Suite (Phase 1)", () => {
     render(<LandingPage onEnterWorkspace={vi.fn()} />);
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Not everything online is what it appears to be." })
+      screen.getByRole("heading", { level: 2, name: "Some things are hard to verify by eye." })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Haven brings media examination, evidence documentation, and investigation into one workspace./i)
+      screen.getByText(/Haven examines indicators and builds a record of what it observed/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Exhibit A · video received by message/i)).toBeInTheDocument();
     expect(screen.getByText(/Exhibit B · provenance notes/i)).toBeInTheDocument();
@@ -43,10 +43,10 @@ describe("LandingPage Production Suite (Phase 1)", () => {
   it("renders Section 3: All 4 distinct Capabilities panels", () => {
     render(<LandingPage onEnterWorkspace={vi.fn()} />);
 
-    expect(screen.getByRole("heading", { level: 3, name: "Media analysis" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Authenticity investigation" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Evidence documentation" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Evidence reports" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Frame by frame" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Side by side" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "An investigation log" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "A readable report" })).toBeInTheDocument();
 
     // Specific capability exhibits
     expect(screen.getByText(/Reference/i)).toBeInTheDocument();
@@ -54,26 +54,26 @@ describe("LandingPage Production Suite (Phase 1)", () => {
     expect(screen.getByText(/Digital media examination/i)).toBeInTheDocument();
   });
 
-  it("renders Section 4: How Haven Works with all 5 sequential stages", () => {
+  it("renders Section 4: How Haven Works with all 5 sequential steps", () => {
     render(<LandingPage onEnterWorkspace={vi.fn()} />);
 
     expect(screen.getByRole("heading", { level: 2, name: "How Haven works" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Upload suspicious media" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Analyze the media" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Examine available indicators" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Document findings" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Generate an evidence report" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Drop the file" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Examine frame by frame" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Review what it found" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Add what you know" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Export the record" })).toBeInTheDocument();
   });
 
-  it("renders Section 5: Final CTA with direct action to explore", () => {
+  it("renders Section 5: Final CTA with direct action to open Haven", () => {
     const handleExplore = vi.fn();
     render(<LandingPage onEnterWorkspace={handleExplore} />);
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Make sense of what you see." })
+      screen.getByRole("heading", { level: 2, name: "Start with the file you have." })
     ).toBeInTheDocument();
 
-    const ctaBtns = screen.getAllByRole("button", { name: /Explore Haven/i });
+    const ctaBtns = screen.getAllByRole("button", { name: /Open Haven/i });
     fireEvent.click(ctaBtns[ctaBtns.length - 1]);
     expect(handleExplore).toHaveBeenCalled();
   });
@@ -86,5 +86,8 @@ describe("LandingPage Production Suite (Phase 1)", () => {
     expect(screen.getByText("StopNCII.org")).toBeInTheDocument();
     expect(screen.getByText("GitHub Repository")).toBeInTheDocument();
     expect(screen.getByText(/© 2026 Haven. All rights reserved./i)).toBeInTheDocument();
+
+    // Footer nav casing check
+    expect(screen.getByRole("link", { name: "How it works" })).toBeInTheDocument();
   });
 });
