@@ -972,27 +972,9 @@ footer {
 
 .fgrid {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 40px;
   padding: 64px 0 48px;
-}
-
-.fb p {
-  max-width: 34ch;
-  margin-top: 14px;
-}
-
-.fb .tag {
-  color: var(--tx);
-  font-size: 16px;
-  font-weight: 500;
-  margin-top: 20px;
-}
-
-.fm {
-  font: 400 clamp(96px, 13vw, 200px)/0.9 var(--wm);
-  color: var(--green);
-  letter-spacing: -0.01em;
 }
 
 .fc h4 {
@@ -1063,10 +1045,7 @@ footer {
     padding-left: 20px;
   }
   .fgrid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .fb {
-    grid-column: 1/-1;
+    grid-template-columns: 1fr 1fr 1fr;
   }
 }
 

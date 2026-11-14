@@ -724,11 +724,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterWorkspace }) =>
       {/* SECTION 6: EDITORIAL FOOTER */}
       <footer>
         <div className="fgrid">
-          <div className="fb">
-            <div className="fm">Haven</div>
-            <div className="tag">Your digital safety workspace.</div>
-            <p>Haven is a workspace for examining suspicious media, documenting digital threats, and preserving evidence.</p>
-          </div>
           <div className="fc">
             <h4>Explore</h4>
             <a href="#top">Home</a>
