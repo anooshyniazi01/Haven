@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { LandingPage } from "../../src/features/landing/LandingPage";
 
-describe("LandingPage Production Suite (Phase 1)", () => {
+describe("LandingPage Production Suite", () => {
   it("renders Section 1: Hero with wordmark, tagline, and actions", () => {
     const handleExplore = vi.fn();
     render(<LandingPage onEnterWorkspace={handleExplore} />);
@@ -23,7 +23,7 @@ describe("LandingPage Production Suite (Phase 1)", () => {
     expect(screen.getByRole("link", { name: /See how it works/i })).toBeInTheDocument();
 
     // Forensic Exhibit
-    expect(screen.getByText(/00:07.13 · FRAME 214/i)).toBeInTheDocument();
+    expect(screen.getByText(/00:07.13 · Frame 214/i)).toBeInTheDocument();
     expect(screen.getByText(/SHA-256 9f3a…c71e/i)).toBeInTheDocument();
   });
 
@@ -36,27 +36,17 @@ describe("LandingPage Production Suite (Phase 1)", () => {
     expect(
       screen.getByText(/Haven examines indicators and builds a record of what it observed/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/Exhibit A · video received by message/i)).toBeInTheDocument();
-    expect(screen.getByText(/Exhibit B · Quantization step variance/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exhibit A · video received by message, 14 Mar/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exhibit A · frame 214, enlarged crop/i)).toBeInTheDocument();
   });
 
-  it("renders Section 3: All 4 distinct Capabilities panels interactively", () => {
+  it("renders Section 3: All 4 distinct Capabilities panels in the track", () => {
     render(<LandingPage onEnterWorkspace={vi.fn()} />);
 
+    expect(screen.getByRole("heading", { level: 2, name: "Capabilities" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "Frame by frame" })).toBeInTheDocument();
-
-    // Click Side by side tab
-    fireEvent.click(screen.getByRole("tab", { name: /Side by side/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Side by side" })).toBeInTheDocument();
-    expect(screen.getByText(/VERIFIED REFERENCE ASSET/i)).toBeInTheDocument();
-    expect(screen.getByText(/SUBMITTED SUSPICIOUS FILE/i)).toBeInTheDocument();
-
-    // Click An investigation log tab
-    fireEvent.click(screen.getByRole("tab", { name: /An investigation log/i }));
     expect(screen.getByRole("heading", { level: 3, name: "An investigation log" })).toBeInTheDocument();
-
-    // Click A readable report tab
-    fireEvent.click(screen.getByRole("tab", { name: /A readable report/i }));
     expect(screen.getByRole("heading", { level: 3, name: "A readable report" })).toBeInTheDocument();
   });
 
@@ -65,21 +55,9 @@ describe("LandingPage Production Suite (Phase 1)", () => {
 
     expect(screen.getByRole("heading", { level: 2, name: "How Haven works" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "Drop the file" })).toBeInTheDocument();
-
-    // Navigate to step 2
-    fireEvent.click(screen.getByRole("button", { name: /Next →/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Examine frame by frame" })).toBeInTheDocument();
-
-    // Navigate to step 3
-    fireEvent.click(screen.getByRole("button", { name: /Next →/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Review what it found" })).toBeInTheDocument();
-
-    // Navigate to step 4
-    fireEvent.click(screen.getByRole("button", { name: /Next →/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Add what you know" })).toBeInTheDocument();
-
-    // Navigate to step 5
-    fireEvent.click(screen.getByRole("button", { name: /Next →/i }));
     expect(screen.getByRole("heading", { level: 3, name: "Export the record" })).toBeInTheDocument();
   });
 
